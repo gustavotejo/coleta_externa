@@ -32,7 +32,7 @@ input.s{width:auto;margin:0}label{font-size:13px;color:var(--mut)}
 <div id="login" class="hide card"><h1>🩸 Rotas de Coleta</h1><label>E-mail</label><input id="em" type="email"><label>Senha</label><input id="pw" type="password" onkeydown="if(event.key==='Enter')doLogin()"><button class="pri" onclick="doLogin()">Entrar</button> <span id="lerr" class="mut"></span></div>
 <div id="app" class="hide">
 <header><h1>🩸 Rotas de Coleta</h1>
-<div class="tabs row"><button id="t-rotas" onclick="tab('rotas')">Rotas</button><button id="t-pac" onclick="tab('pac')">Pacientes</button><button id="t-col" onclick="tab('col')">Coletadores</button><button id="t-gps" onclick="tab('gps')">GPS</button></div>
+<div class="tabs row"><button id="t-rotas" onclick="tab('rotas')">Rotas</button><button id="t-pac" onclick="tab('pac')">Pacientes</button><button id="t-col" onclick="tab('col')">Coletadores</button><button id="t-gps" onclick="tab('gps')">GPS</button><button id="t-cfg" onclick="tab('cfg')">Sede</button></div>
 <span id="live" class="mut"></span><button onclick="logout()" style="margin-left:auto">Sair</button></header>
 <main>
 <section id="v-rotas"><div class="card row">
@@ -44,9 +44,9 @@ input.s{width:auto;margin:0}label{font-size:13px;color:var(--mut)}
 <label><input type="checkbox" id="line" onchange="opt()"> linha reta</label></div>
 <div class="grid"><div><div class="card"><b>Distribuição automática por região</b>
 <div class="row" style="margin-top:6px"><label>Coletador 1 começa pela zona</label><select id="zs" class="s"><option value="">Automático (melhor divisão)</option><option value="0">Norte</option><option value="90">Leste</option><option value="180">Sul</option><option value="270">Oeste</option></select></div>
-<div class="row" style="margin:6px 0"><label><input type="checkbox" id="redo"> incluir também paradas já atribuídas (redistribuir tudo)</label></div>
+<div class="row" style="margin:6px 0"><label><input type="checkbox" id="redo" checked> permitir trocar pacientes entre coletadores (inclui os já atribuídos do dia)</label></div>
 <button class="pri" onclick="autoDist()">Distribuir os pacientes marcados</button>
-<p class="mut" style="margin:6px 0 0">Marque abaixo os pacientes do dia. O sistema divide por região em partes iguais e ordena cada rota pelo caminho mais curto.</p></div>
+<p class="mut" style="margin:6px 0 0">Marque abaixo os pacientes do dia. O sistema divide por região, depois testa mover e trocar pacientes entre coletadores para reduzir o tempo total e equilibrar as rotas, e ordena cada rota pelo caminho mais curto.</p></div>
 <div id="rotas"></div></div><div id="mapa"></div></div></section>
 <section id="v-pac" class="hide"><div class="grid"><div class="card"><b id="ftit">Novo paciente</b><br>
 <label>Nome</label><input id="pn"><label>Telefone</label><input id="pt"><label>Endereço (pode escrever do seu jeito)</label><input id="pa" placeholder="ex.: rua maciel pinheiro 200 centro" onkeydown="if(event.key==='Enter')geo()">
@@ -61,13 +61,21 @@ input.s{width:auto;margin:0}label{font-size:13px;color:var(--mut)}
 <p class="mut">Abra este app no celular do coletador, escolha o nome dele e toque em Iniciar. Mantenha a tela ligada e a página aberta. A posição aparece em tempo real no mapa da central.</p>
 <div class="row"><select id="gpsc" class="s"></select><button class="pri" onclick="gpsStart()">Iniciar</button><button onclick="gpsStop()">Parar</button></div><p id="gpsmsg" class="mut"></p></div>
 <div class="card" style="max-width:560px"><b>Últimas posições</b><div id="gpslist"></div></div></section>
+<section id="v-cfg" class="hide"><div class="card" style="max-width:640px"><b>Endereço de saída (sede)</b>
+<p class="mut">Todas as rotas saem e voltam deste ponto. A mudança vale para toda a equipe.</p>
+<label>Nome</label><input id="on"><label>Endereço</label><input id="oa" placeholder="Rua, número, bairro, cidade" onkeydown="if(event.key==='Enter')ogeo()">
+<div class="row"><button onclick="ogeo()">Buscar endereço</button><span id="omsg" class="mut"></span></div><div id="osug" style="margin-top:6px"></div>
+<label>Ou cole as coordenadas / link do Google Maps</label><div class="row"><input id="oc" class="grow" style="margin:0" placeholder="-7.2306, -35.8811"><button onclick="opaste()">Usar</button></div>
+<p class="mut">Confira o pino: clique no mapa ou arraste-o até o local exato da sede.</p>
+<div id="smap" style="height:320px;border-radius:8px;margin-bottom:8px"></div><div id="ocoord" class="mut" style="margin-bottom:8px"></div>
+<button class="pri" onclick="saveOrigin()">Salvar sede</button></div></section>
 </main></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script>
 // ====== CONFIGURAÇÃO ======
 const SUPABASE_URL="https://gqpvcqztxbyafkhcvawm.supabase.co",SUPABASE_KEY="sb_publishable_4i3KzIZOGcDj935Zvwx5QA__rHFV1b1";
-// Sede (ponto de saída). Troque lat/lng pelas coordenadas exatas copiadas do Google Maps.
+// Sede padrão (usada só até você salvar outra na aba "Sede").
 const ORIGIN={name:"Sangue Centro (sede)",address:"Rua Sandra Borborema, 61 - Centro, Campina Grande - PB, 58400-122",lat:-7.2306,lng:-35.8811};
 // Opcional: chave do Google (Geocoding API) para busca de endereço mais precisa. Deixe vazio para usar a busca gratuita.
 const GOOGLE_KEY="";
@@ -99,11 +107,20 @@ const d=hav(f[i-1],f[i])+hav(f[j],f[j+1])-hav(f[i-1],f[j])-hav(f[i],f[j+1]);
 if(d>1e-9){f.splice(i,j-i+1,...f.slice(i,j+1).reverse());imp=true}}}
 return f.slice(1,-1)}
 const tlen=o=>{let s=0,c=ORIGIN;o.forEach(p=>{s+=hav(c,p);c=p});return s+hav(c,ORIGIN)};
-function split(ps,k,start){const n=ps.length,b=ps.map(p=>({p,a:bearing(p)}));
+function split(ps,k,start,svc){const n=ps.length,b=ps.map(p=>({p,a:bearing(p)}));
 const run=s=>{const arr=b.map(x=>({p:x.p,a:(x.a-s+360)%360})).sort((u,v)=>u.a-v.a).map(x=>x.p),g=[];let i=0;
 for(let j=0;j<k;j++){const m=Math.floor(n/k)+(j<n%k?1:0);g.push(arr.slice(i,i+m));i+=m}return g.map(tour)};
-if(start!=null)return run(start);
-let best=null,bc=1e18;b.forEach(x=>{const g=run(x.a),c=g.reduce((s,q)=>s+tlen(q),0);if(c<bc){bc=c;best=g}});return best}
+if(start!=null)return improve(run(start),svc);
+let best=null,bc=1e18;b.forEach(x=>{const g=run(x.a),c=g.reduce((s,q)=>s+tlen(q),0);if(c<bc){bc=c;best=g}});return improve(best,svc)}
+function improve(g,svc){const tm=q=>tlen(q)*2.7+q.length*svc,cost=gs=>{const t=gs.map(tm);return t.reduce((a,b)=>a+b,0)*.3+Math.max(...t)};
+let cur=cost(g),pass=0,found=true;
+while(found&&pass++<40){found=false;
+search:for(let a=0;a<g.length;a++)for(let i=0;i<g[a].length;i++)for(let b=0;b<g.length;b++){if(a===b)continue;const p=g[a][i];
+let t=g.slice();t[a]=tour(g[a].filter((_,x)=>x!==i));t[b]=tour([...g[b],p]);let c=cost(t);
+if(c<cur-1e-6){g=t;cur=c;found=true;break search}
+for(let j=0;j<g[b].length;j++){const q=g[b][j];t=g.slice();t[a]=tour(g[a].map((x,y)=>y===i?q:x));t[b]=tour(g[b].map((x,y)=>y===j?p:x));c=cost(t);
+if(c<cur-1e-6){g=t;cur=c;found=true;break search}}}}
+return g}
 function zone(ps){const c={};ps.forEach(p=>{const d=hav(ORIGIN,p)<.8?"Centro":(b=>b<45||b>=315?"Norte":b<135?"Leste":b<225?"Sul":"Oeste")(bearing(p));c[d]=(c[d]||0)+1});
 return Object.entries(c).filter(([k,v])=>v/ps.length>=.25).sort((a,b)=>b[1]-a[1]).map(x=>x[0]).join(" · ")}
 
@@ -126,18 +143,20 @@ async function doLogin(){const{error}=await db.auth.signInWithPassword({email:$(
 async function logout(){gpsStop();await db.auth.signOut();location.reload()}
 function enter(){$("login").classList.add("hide");$("app").classList.remove("hide");$("dt").value=D;
 $("st").value=LS.g("st","08:00");$("svc").value=LS.g("svc","10");$("ret").checked=LS.g("ret","1")==="1";$("real").checked=LS.g("real","1")==="1";$("line").checked=LS.g("line","0")==="1";
-mm=L.map("mapa").setView([ORIGIN.lat,ORIGIN.lng],13);tiles(mm);ml=L.layerGroup().addTo(mm);gl=L.layerGroup().addTo(mm);tab("rotas");load();
+mm=L.map("mapa").setView([ORIGIN.lat,ORIGIN.lng],13);tiles(mm);ml=L.layerGroup().addTo(mm);gl=L.layerGroup().addTo(mm);tab("rotas");loadOrigin().then(()=>{mm.setView([ORIGIN.lat,ORIGIN.lng],13);load()});
 const ch=db.channel("live");
 ["collectors","patients","stops"].forEach(t=>ch.on("postgres_changes",{event:"*",schema:"public",table:t},()=>{clearTimeout(tm);tm=setTimeout(load,200)}));
 ch.on("postgres_changes",{event:"*",schema:"public",table:"positions"},()=>{clearTimeout(tp);tp=setTimeout(loadPos,200)});
+ch.on("postgres_changes",{event:"*",schema:"public",table:"settings"},()=>loadOrigin().then(()=>{fit=true;load()}));
 ch.subscribe(s=>{$("live").textContent=s==="SUBSCRIBED"?"● ao vivo":"○ reconectando…"});setInterval(()=>{drawCars();renderGps()},30000)}
 function opt(){LS.s("st",$("st").value);LS.s("svc",$("svc").value);LS.s("ret",$("ret").checked?"1":"0");LS.s("real",$("real").checked?"1":"0");LS.s("line",$("line").checked?"1":"0");render()}
 async function load(){const[p,c,t]=await Promise.all([db.from("patients").select("*").order("name"),db.from("collectors").select("*").order("created_at"),db.from("stops").select("*").eq("route_date",D)]);
 const e=p.error||c.error||t.error;if(e){alert("Erro: "+e.message);return}P=p.data;C=c.data;T=t.data;render();loadPos()}
 async function loadPos(){const r=await db.from("positions").select("*");if(!r.error){POS=r.data;drawCars();renderGps()}}
 async function go(...qs){const r=await Promise.all(qs);r.forEach(x=>{if(x&&x.error)alert(x.error.message)});load()}
-function tab(t){["rotas","pac","col","gps"].forEach(k=>{$("v-"+k).classList.toggle("hide",k!==t);$("t-"+k).classList.toggle("on",k===t)});
+function tab(t){["rotas","pac","col","gps","cfg"].forEach(k=>{$("v-"+k).classList.toggle("hide",k!==t);$("t-"+k).classList.toggle("on",k===t)});
 if(t==="rotas")setTimeout(()=>mm.invalidateSize(),50);
+if(t==="cfg")initCfg();
 if(t==="pac"){if(!fm){fm=L.map("fmap").setView([ORIGIN.lat,ORIGIN.lng],12);tiles(fm);fm.on("click",e=>setPin(e.latlng.lat,e.latlng.lng))}setTimeout(()=>fm.invalidateSize(),50)}}
 function render(){renderRotas();renderPat();renderCol();renderGps();ensureRoutes()}
 
@@ -175,7 +194,7 @@ go(...o.map((p,k)=>{const s=ss.find(x=>x.patient_id===p.id);return s.position!==
 function selAll(){P.filter(p=>!T.some(s=>s.patient_id===p.id)).forEach(p=>sel.add(p.id));render()}
 async function autoDist(){const redo=$("redo").checked,pool=new Set(sel);if(redo)T.forEach(s=>pool.add(s.patient_id));
 const ps=[...pool].map(pt).filter(Boolean);if(!C.length||!ps.length){alert("Marque os pacientes do dia (caixinhas) e cadastre ao menos um coletador.");return}
-const v=$("zs").value,g=split(ps,C.length,v===""?null:+v),off=C.map(c=>redo?0:stopsOf(c.id).length);
+const v=$("zs").value,g=split(ps,C.length,v===""?null:+v,+$("svc").value||0),off=C.map(c=>redo?0:stopsOf(c.id).length);
 let r=await db.from("stops").delete().eq("route_date",D).in("patient_id",[...pool]);if(r.error){alert(r.error.message);return}
 r=await db.from("stops").insert(g.flatMap((l,j)=>l.map((p,i)=>({route_date:D,collector_id:C[j].id,patient_id:p.id,position:off[j]+i}))));
 if(r.error){alert(r.error.message);return}sel.clear();fit=true;load()}
@@ -224,5 +243,23 @@ $("gpsmsg").textContent=error?error.message:"Enviando localização · última �
 e=>{$("gpsmsg").textContent="Erro de GPS: "+e.message},{enableHighAccuracy:true,maximumAge:5000});
 try{navigator.wakeLock&&navigator.wakeLock.request("screen")}catch(e){}$("gpsmsg").textContent="Iniciando… permita o acesso à localização."}
 function gpsStop(){if(gpsW!=null){navigator.geolocation.clearWatch(gpsW);gpsW=null;$("gpsmsg").textContent="Compartilhamento parado."}}
+/* ---------- sede (configuração) ---------- */
+let sm,smk,SOS=[],opin=null;
+async function loadOrigin(){let v=null;try{const r=await db.from("settings").select("value").eq("key","origin").maybeSingle();if(r.data)v=r.data.value;else v=JSON.parse(LS.g("origin","null"))}catch(e){}
+if(v&&isFinite(v.lat)&&isFinite(v.lng))Object.assign(ORIGIN,v)}
+function initCfg(){if(!sm){sm=L.map("smap").setView([ORIGIN.lat,ORIGIN.lng],15);tiles(sm);sm.on("click",e=>setO(e.latlng.lat,e.latlng.lng))}
+$("on").value=ORIGIN.name;$("oa").value=ORIGIN.address;$("omsg").textContent="";$("osug").innerHTML="";setO(ORIGIN.lat,ORIGIN.lng,true);setTimeout(()=>sm.invalidateSize(),50)}
+function setO(a,b,zoom){opin=[a,b];if(!smk){smk=L.marker([a,b],{draggable:true,icon:L.divIcon({className:"",html:'<div class="pin" style="background:#222;width:32px;height:32px;font-size:16px">🏥</div>',iconSize:[32,32],iconAnchor:[16,16]})}).addTo(sm);smk.on("dragend",()=>{const q=smk.getLatLng();opin=[q.lat,q.lng];$("ocoord").textContent="Local marcado: "+opin[0].toFixed(6)+", "+opin[1].toFixed(6)})}else smk.setLatLng([a,b]);
+if(zoom)sm.setView([a,b],17);$("ocoord").textContent="Local marcado: "+a.toFixed(6)+", "+b.toFixed(6)}
+async function ogeo(){const a=$("oa").value.trim();if(!a)return;$("omsg").textContent="Buscando…";$("osug").innerHTML="";SOS=await suggest(a);
+if(!SOS.length){$("omsg").textContent="Não encontrei. Cole as coordenadas do Google Maps abaixo ou clique no mapa.";return}
+setO(SOS[0].lat,SOS[0].lng,true);$("omsg").textContent=SOS.length>1?"Confira o pino. Outras opções:":"Confira o pino.";
+$("osug").innerHTML=SOS.length>1?SOS.map((x,i)=>`<button style="display:block;text-align:left;width:100%;margin-bottom:4px" onclick="setO(SOS[${i}].lat,SOS[${i}].lng,true)">${esc(x.label)}</button>`).join(""):""}
+function opaste(){const m=parseLL($("oc").value);if(!m){$("omsg").textContent="Não entendi. Cole coordenadas (ex.: -7.23, -35.88) ou o link completo do Google Maps.";return}setO(m[0],m[1],true);$("omsg").textContent="Local marcado pelas coordenadas."}
+async function saveOrigin(){if(!opin){alert("Marque o local no mapa.");return}
+const v={name:$("on").value.trim()||"Sede",address:$("oa").value.trim(),lat:opin[0],lng:opin[1]};
+const{error}=await db.from("settings").upsert({key:"origin",value:v});
+if(error){LS.s("origin",JSON.stringify(v));alert("Não consegui salvar no banco ("+error.message+"). Salvei só neste aparelho. Rode o SQL da tabela settings para compartilhar com a equipe.")}
+Object.assign(ORIGIN,v);fit=true;render();$("omsg").textContent="Sede salva."}
 boot();
 </script></body></html>
