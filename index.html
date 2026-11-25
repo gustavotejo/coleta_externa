@@ -58,7 +58,7 @@ input.s{width:auto;margin:0}label{font-size:13px;color:var(--mut)}
 <div class="row"><label><input type="checkbox" id="pmap" onchange="LS.s('pmap',this.checked?'1':'0')"> incluir mapa com a rota e as marcações</label><button class="pri" onclick="printRoutes()">Imprimir selecionados</button></div></div>
 <div id="rotas"></div></div><div id="mapa"></div></div></section>
 <section id="v-pac" class="hide"><div class="grid"><div class="card"><b id="ftit">Novo paciente</b><br>
-<label>Nome</label><input id="pn"><label>Telefone</label><input id="pt"><label>Endereço (pode escrever do seu jeito)</label><input id="pa" placeholder="ex.: rua maciel pinheiro 200 centro" onkeydown="if(event.key==='Enter')geo()">
+<label>Nome</label><input id="pn"><label>Telefone</label><input id="pt"><label>Endereço completo (aparece nas rotas e no WhatsApp)</label><input id="pf" placeholder="Rua, nº, bairro, complemento, ponto de referência"><label>Endereço para localizar no mapa (pode escrever do seu jeito)</label><input id="pa" placeholder="ex.: rua maciel pinheiro 200 centro" onkeydown="if(event.key==='Enter')geo()">
 <div class="row"><button onclick="geo()">Buscar endereço</button><span id="gmsg" class="mut"></span></div><div id="sug" style="margin-top:6px"></div>
 <label>Ou cole as coordenadas / link do Google Maps</label><div class="row"><input id="pc" class="grow" style="margin:0" placeholder="-7.2306, -35.8811"><button onclick="pasteLL()">Usar</button></div>
 <p class="mut">Confira o pino: clique no mapa ou arraste-o até o local exato.</p>
@@ -99,7 +99,7 @@ const LS={g(k,d){try{const v=localStorage.getItem(k);return v==null?d:v}catch(e)
 const tomorrow=()=>{const d=new Date();d.setDate(d.getDate()+1);return d.toLocaleDateString("sv-SE")};
 let P=[],C=[],T=[],POS=[],SUG=[],D=tomorrow(),editId=null,pin=null,fit=true,mm,ml,gl,fm,fmk,tm,tp,gpsW=null,gpsT=0;
 const sel=new Set(),RC=new Map(),pend=new Set();
-const pt=id=>P.find(p=>p.id===id);
+const pt=id=>P.find(p=>p.id===id),ad=p=>(p&&(p.full_address||p.address))||"";
 const stopsOf=cid=>T.filter(s=>s.collector_id===cid).sort((a,b)=>a.position-b.position);
 const tiles=m=>L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(m);
 const icon=(col,t)=>L.divIcon({className:"",html:`<div class="pin" style="background:${col}">${t}</div>`,iconSize:[26,26],iconAnchor:[13,13]});
@@ -185,18 +185,18 @@ C.forEach(c=>{const f=info(c),n=f.ps.length;
 h+=`<div class="card"><div class="row"><span class="dot" style="background:${c.color}"></span><b class="grow">${esc(c.name)} <span class="mut">${n?"· "+esc(zone(f.ps)):""}</span></b><button onclick="optim('${c.id}')">Otimizar ordem</button><button onclick="printRoutes(['${c.id}'])">Imprimir</button><button onclick="sendWpp('${c.id}')">WhatsApp</button><a class="btn" target="_blank" rel="noopener" href="${dirUrl(c)}">Google Maps</a></div>`;
 if(n)h+=`<div class="mut" style="margin:4px 0"><b>${n} paradas · ${fd(f.end)} no total · ${(f.dist/1000).toFixed(1)} km</b> · fim ~${clock(f.end)}${f.est?" (estimativa, calculando rota real…)":""}</div><div class="mut">🏥 Saída ${clock(0)} · ${esc(ORIGIN.name)}</div>`;
 f.ss.forEach((s,i)=>{const p=pt(s.patient_id),a=f.arr[i];
-h+=`<div class="stop"><span class="num" style="background:${c.color}">${i+1}</span><div class="grow" style="cursor:pointer" onclick="mm.flyTo([${p.lat},${p.lng}],16)"><b>${esc(p.name)}</b><div class="mut">${esc(p.address)}</div><div class="eta">chega ~${clock(a.at+i*(+$("svc").value||0)*60)} · ${fd(a.leg)} de viagem</div></div><button onclick="mv('${s.id}',-1)">↑</button><button onclick="mv('${s.id}',1)">↓</button><select onchange="mvTo('${s.id}',this.value)"><option value="">Mover…</option>${C.filter(x=>x.id!==c.id).map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join("")}</select><button onclick="rm('${s.id}')">✕</button></div>`});
+h+=`<div class="stop"><span class="num" style="background:${c.color}">${i+1}</span><div class="grow" style="cursor:pointer" onclick="mm.flyTo([${p.lat},${p.lng}],16)"><b>${esc(p.name)}</b><div class="mut">${esc(ad(p))}</div><div class="eta">chega ~${clock(a.at+i*(+$("svc").value||0)*60)} · ${fd(a.leg)} de viagem</div></div><button onclick="mv('${s.id}',-1)">↑</button><button onclick="mv('${s.id}',1)">↓</button><select onchange="mvTo('${s.id}',this.value)"><option value="">Mover…</option>${C.filter(x=>x.id!==c.id).map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join("")}</select><button onclick="rm('${s.id}')">✕</button></div>`});
 h+="</div>"});
 h+=`<div class="card"><div class="row"><b class="grow">Pacientes sem coletador (${free.length})</b><button onclick="selAll()">Marcar todos</button><button onclick="sel.clear();render()">Limpar</button></div>`;
-free.forEach(p=>{h+=`<div class="stop"><input type="checkbox" ${sel.has(p.id)?"checked":""} onchange="this.checked?sel.add('${p.id}'):sel.delete('${p.id}')"><div class="grow"><b>${esc(p.name)}</b><div class="mut">${esc(p.address)}</div></div><select onchange="assign('${p.id}',this.value)"><option value="">Atribuir a…</option>${C.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join("")}</select></div>`});
+free.forEach(p=>{h+=`<div class="stop"><input type="checkbox" ${sel.has(p.id)?"checked":""} onchange="this.checked?sel.add('${p.id}'):sel.delete('${p.id}')"><div class="grow"><b>${esc(p.name)}</b><div class="mut">${esc(ad(p))}</div></div><select onchange="assign('${p.id}',this.value)"><option value="">Atribuir a…</option>${C.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join("")}</select></div>`});
 $("rotas").innerHTML=h+"</div>";drawMap()}
 function drawMap(){ml.clearLayers();const pts=[[ORIGIN.lat,ORIGIN.lng]],used=new Set(T.map(s=>s.patient_id));
 L.marker([ORIGIN.lat,ORIGIN.lng],{icon:L.divIcon({className:"",html:'<div class="pin" style="background:#222;width:32px;height:32px;font-size:16px">🏥</div>',iconSize:[32,32],iconAnchor:[16,16]}),zIndexOffset:900}).bindPopup(`<b>${esc(ORIGIN.name)}</b><br>${esc(ORIGIN.address)}`).addTo(ml);
-P.filter(p=>!used.has(p.id)).forEach(p=>{L.circleMarker([p.lat,p.lng],{radius:6,color:"#fff",weight:2,fillColor:"#9aa1ad",fillOpacity:1}).bindPopup(`<b>${esc(p.name)}</b><br>${esc(p.address)}<br><i>sem coletador</i>`).addTo(ml);pts.push([p.lat,p.lng])});
+P.filter(p=>!used.has(p.id)).forEach(p=>{L.circleMarker([p.lat,p.lng],{radius:6,color:"#fff",weight:2,fillColor:"#9aa1ad",fillOpacity:1}).bindPopup(`<b>${esc(p.name)}</b><br>${esc(ad(p))}<br><i>sem coletador</i>`).addTo(ml);pts.push([p.lat,p.lng])});
 C.forEach(c=>{const f=info(c);if(!f.ps.length)return;const line=[ORIGIN,...f.ps,...($("ret").checked?[ORIGIN]:[])].map(p=>[p.lat,p.lng]);
 if($("real").checked)L.polyline(f.geo||line,{color:c.color,weight:4,opacity:.85}).addTo(ml);
 if($("line").checked)L.polyline(line,{color:c.color,weight:2,dashArray:"6 6",opacity:.8}).addTo(ml);
-f.ps.forEach((p,i)=>{L.marker([p.lat,p.lng],{icon:icon(c.color,i+1)}).bindPopup(`<b>${esc(p.name)}</b><br>${esc(p.address)}<br>${esc(c.name)} · parada ${i+1}<br>chega ~${clock(f.arr[i].at+i*(+$("svc").value||0)*60)}`).addTo(ml);pts.push([p.lat,p.lng])})});
+f.ps.forEach((p,i)=>{L.marker([p.lat,p.lng],{icon:icon(c.color,i+1)}).bindPopup(`<b>${esc(p.name)}</b><br>${esc(ad(p))}<br>${esc(c.name)} · parada ${i+1}<br>chega ~${clock(f.arr[i].at+i*(+$("svc").value||0)*60)}`).addTo(ml);pts.push([p.lat,p.lng])})});
 if(fit&&pts.length>1){mm.fitBounds(pts,{padding:[40,40],maxZoom:16});fit=false}}
 function drawCars(){if(!gl)return;gl.clearLayers();POS.forEach(p=>{const c=C.find(x=>x.id===p.collector_id);if(!c)return;const old=Date.now()-new Date(p.updated_at)>180000;
 L.marker([p.lat,p.lng],{zIndexOffset:1000,icon:L.divIcon({className:"",html:`<div class="car" style="border-color:${c.color};opacity:${old?.5:1}">🚗</div>`,iconSize:[30,30],iconAnchor:[15,15]})}).bindPopup(`<b>${esc(c.name)}</b><br>atualizado ${ago(p.updated_at)}`).addTo(gl)})}
@@ -236,14 +236,14 @@ function pasteLL(){const m=parseLL($("pc").value);if(!m){$("gmsg").textContent="
 function showPin(){$("pcoord").textContent=pin?"Local marcado: "+pin[0].toFixed(6)+", "+pin[1].toFixed(6):"Sem local marcado."}
 function setPin(a,b,zoom){pin=[a,b];if(!fmk){fmk=L.marker([a,b],{draggable:true,icon:icon("#c0392b","•")}).addTo(fm);fmk.on("dragend",()=>{const q=fmk.getLatLng();pin=[q.lat,q.lng];showPin()})}else fmk.setLatLng([a,b]);if(zoom)fm.setView([a,b],17);showPin()}
 async function savePat(){const n=$("pn").value.trim();if(!n){alert("Informe o nome.");return}if(!pin){alert("Marque o local no mapa.");return}
-const o={name:n,phone:$("pt").value.trim(),address:$("pa").value.trim(),lat:pin[0],lng:pin[1]};
+const o={name:n,phone:$("pt").value.trim(),address:$("pa").value.trim(),full_address:$("pf").value.trim(),lat:pin[0],lng:pin[1]};
 const{error}=editId?await db.from("patients").update(o).eq("id",editId):await db.from("patients").insert(o);
 if(error){alert(error.message);return}clearForm();load()}
-function clearForm(){editId=null;pin=null;["pn","pt","pa","pc"].forEach(i=>$(i).value="");$("ftit").textContent="Novo paciente";$("gmsg").textContent="";$("sug").innerHTML="";if(fmk){fm.removeLayer(fmk);fmk=null}showPin()}
-function editPat(id){const p=pt(id);editId=id;$("pn").value=p.name;$("pt").value=p.phone||"";$("pa").value=p.address||"";$("ftit").textContent="Editar paciente";setPin(p.lat,p.lng,true);window.scrollTo(0,0)}
+function clearForm(){editId=null;pin=null;["pn","pt","pa","pc","pf"].forEach(i=>$(i).value="");$("ftit").textContent="Novo paciente";$("gmsg").textContent="";$("sug").innerHTML="";if(fmk){fm.removeLayer(fmk);fmk=null}showPin()}
+function editPat(id){const p=pt(id);editId=id;$("pn").value=p.name;$("pt").value=p.phone||"";$("pa").value=p.address||"";$("pf").value=p.full_address||"";$("ftit").textContent="Editar paciente";setPin(p.lat,p.lng,true);window.scrollTo(0,0)}
 function delPat(id){if(confirm("Excluir este paciente (e suas paradas)?"))go(db.from("patients").delete().eq("id",id))}
 function renderPat(){const q=$("q").value.toLowerCase();
-$("plist").innerHTML=P.filter(p=>(p.name+" "+(p.address||"")).toLowerCase().includes(q)).map(p=>`<div class="card row"><div class="grow"><b>${esc(p.name)}</b><div class="mut">${esc(p.address)} ${esc(p.phone)}</div></div><button onclick="editPat('${p.id}')">Editar</button><button onclick="delPat('${p.id}')">✕</button></div>`).join("")||'<p class="mut">Nenhum paciente.</p>'}
+$("plist").innerHTML=P.filter(p=>(p.name+" "+(p.address||"")+" "+(p.full_address||"")).toLowerCase().includes(q)).map(p=>`<div class="card row"><div class="grow"><b>${esc(p.name)}</b><div class="mut">${esc(ad(p))} ${esc(p.phone)}</div></div><button onclick="editPat('${p.id}')">Editar</button><button onclick="delPat('${p.id}')">✕</button></div>`).join("")||'<p class="mut">Nenhum paciente.</p>'}
 
 /* ---------- coletadores e GPS ---------- */
 function addCol(){const n=$("cn").value.trim();if(!n)return;const o={name:n,color:COLORS[C.length%COLORS.length]},ph=$("cp").value.trim();if(ph)o.phone=ph;$("cn").value="";$("cp").value="";go(db.from("collectors").insert(o))}
@@ -293,7 +293,7 @@ const est=f.est&&(ho.tempo||ho.fim)?" (estimativa)":"",parts=[];
 if(ho.n)parts.push(n+" paradas");if(ho.tempo)parts.push(fd(f.end)+" no total");if(ho.km)parts.push((f.dist/1000).toFixed(1)+" km");if(ho.saida)parts.push("saída "+clock(0));if(ho.fim)parts.push("fim previsto ~"+clock(f.end));if(ho.zona&&z)parts.push("Zona: "+esc(z));
 h+=`<section class="ps"><h2 style="margin:0 0 4px">🩸 ${esc(c.name)}${ho.data?" — "+dt:""}</h2>`+(n?(parts.length?`<div style="margin-bottom:8px">${parts.join(" · ")}${est}</div>`:""):`<div style="margin-bottom:8px">Sem paradas nesta data.</div>`);
 if(n){h+=`<table class="pt"><tr><th></th><th>Nº</th><th>Chegada</th><th>Paciente</th><th>Telefone</th><th>Endereço</th><th>Viagem</th></tr><tr><td></td><td>🏥</td><td>${clock(0)}</td><td colspan="4"><b>Saída:</b> ${esc(ORIGIN.name)} — ${esc(ORIGIN.address)}</td></tr>`;
-f.ps.forEach((p,i)=>{h+=`<tr><td>☐</td><td>${i+1}</td><td>${clock(f.arr[i].at+i*svc)}</td><td>${esc(p.name)}</td><td>${esc(p.phone)}</td><td>${esc(p.address)}</td><td>${fd(f.arr[i].leg)}</td></tr>`});
+f.ps.forEach((p,i)=>{h+=`<tr><td>☐</td><td>${i+1}</td><td>${clock(f.arr[i].at+i*svc)}</td><td>${esc(p.name)}</td><td>${esc(p.phone)}</td><td>${esc(ad(p))}</td><td>${fd(f.arr[i].leg)}</td></tr>`});
 if($("ret").checked)h+=`<tr><td></td><td>🏥</td><td>${clock(f.end)}</td><td colspan="4">Retorno à sede</td></tr>`;
 h+="</table>"}
 if(withMap&&n)h+=`<div class="pm" id="pm${k}"></div>`;
@@ -313,7 +313,7 @@ function renderMe(){const c=C[0];if(!c){$("me").innerHTML='<div class="card mut"
 const ss=stopsOf(c.id).filter(s=>pt(s.patient_id));
 let h=`<div class="card"><div class="row"><span class="dot" style="background:${c.color}"></span><b class="grow">${esc(c.name)} <span class="mut">· ${ss.length} paradas</span></b>${ss.length?`<a class="btn" target="_blank" rel="noopener" href="${dirUrl(c)}">Rota completa no Google Maps</a>`:""}</div>`;
 if(!ss.length)h+='<p class="mut">Nenhuma parada para esta data.</p>';
-ss.forEach((s,i)=>{const p=pt(s.patient_id);h+=`<div class="stop"><span class="num" style="background:${c.color}">${i+1}</span><div class="grow"><b>${esc(p.name)}</b><div class="mut">${esc(p.address)}</div>${p.phone?`<div class="mut">📞 <a href="tel:${esc(p.phone)}">${esc(p.phone)}</a></div>`:""}</div><a class="btn" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&travelmode=driving&destination=${p.lat},${p.lng}">Ir</a></div>`});
+ss.forEach((s,i)=>{const p=pt(s.patient_id);h+=`<div class="stop"><span class="num" style="background:${c.color}">${i+1}</span><div class="grow"><b>${esc(p.name)}</b><div class="mut">${esc(ad(p))}</div>${p.phone?`<div class="mut">📞 <a href="tel:${esc(p.phone)}">${esc(p.phone)}</a></div>`:""}</div><a class="btn" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&travelmode=driving&destination=${p.lat},${p.lng}">Ir</a></div>`});
 $("me").innerHTML=h+"</div>"}
 /* ---------- distribuição: coletadores do dia / WhatsApp ---------- */
 const dun=new Set();
@@ -321,7 +321,7 @@ function renderDistOpts(){$("dcols").innerHTML=C.map(c=>`<label><input type="che
 function sendWpp(cid){const c=C.find(x=>x.id===cid);if(!c)return;const f=info(c),n=f.ps.length;if(!n){alert("Este coletador não tem paradas nesta data.");return}
 const svc=(+$("svc").value||0)*60,dt=D.split("-").reverse().join("/");
 let m=`*Rota de ${c.name} — ${dt}*\nSaída ${clock(0)} · ${ORIGIN.name}\n${n} paradas · ${fd(f.end)} · ${(f.dist/1000).toFixed(1)} km · fim previsto ~${clock(f.end)}${f.est?" (estimativa)":""}\n`;
-f.ps.forEach((p,i)=>{m+=`\n*${i+1}) ${p.name}* — ${clock(f.arr[i].at+i*svc)}\n📍 ${p.address||""}\n`+(p.phone?`📞 ${p.phone}\n`:"")});
+f.ps.forEach((p,i)=>{m+=`\n*${i+1}) ${p.name}* — ${clock(f.arr[i].at+i*svc)}\n📍 ${ad(p)}\n`+(p.phone?`📞 ${p.phone}\n`:"")});
 m+=`\n🗺️ Rota completa no Google Maps:\n${dirUrl(c)}`;
 let ph=(c.phone||"").replace(/\D/g,"").replace(/^0+/,"");if(ph&&ph.length<=11)ph="55"+ph;
 if(!ph&&!confirm("Este coletador não tem telefone cadastrado. Abrir o WhatsApp para escolher o contato?"))return;
