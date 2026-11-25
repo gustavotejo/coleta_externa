@@ -27,6 +27,12 @@ input.s{width:auto;margin:0}label{font-size:13px;color:var(--mut)}
 .pin{width:26px;height:26px;border-radius:50%;color:#fff;font:700 12px system-ui;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 1px 4px #0006}
 .car{width:30px;height:30px;border-radius:50%;background:#fff;border:3px solid;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 1px 4px #0006}
 .eta{font-size:12px;color:var(--ac);font-weight:600}
+#printArea{position:absolute;left:-10000px;top:0;width:680px;background:#fff;color:#000;font:13px/1.35 system-ui,Arial,sans-serif}
+#printArea *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.pt{width:100%;border-collapse:collapse;font-size:12px}.pt th,.pt td{border:1px solid #888;padding:4px 6px;text-align:left;vertical-align:top}.pt th{background:#eee}
+.pm{width:680px;height:440px;margin-top:10px;border:1px solid #888;page-break-inside:avoid}.ps{page-break-after:always}.ps:last-child{page-break-after:auto}
+@page{margin:1.5cm}
+@media print{#app,#login{display:none!important}#printArea{position:static;left:auto;width:auto}body{background:#fff}}
 #login{max-width:340px;margin:12vh auto;padding:0 16px}
 </style></head><body>
 <div id="login" class="hide card"><h1>🩸 Rotas de Coleta</h1><label>E-mail</label><input id="em" type="email"><label>Senha</label><input id="pw" type="password" onkeydown="if(event.key==='Enter')doLogin()"><button class="pri" onclick="doLogin()">Entrar</button> <span id="lerr" class="mut"></span></div>
@@ -47,6 +53,8 @@ input.s{width:auto;margin:0}label{font-size:13px;color:var(--mut)}
 <div class="row" style="margin:6px 0"><label><input type="checkbox" id="redo" checked> permitir trocar pacientes entre coletadores (inclui os já atribuídos do dia)</label></div>
 <button class="pri" onclick="autoDist()">Distribuir os pacientes marcados</button>
 <p class="mut" style="margin:6px 0 0">Marque abaixo os pacientes do dia. O sistema divide por região, depois testa mover e trocar pacientes entre coletadores para reduzir o tempo total e equilibrar as rotas, e ordena cada rota pelo caminho mais curto.</p></div>
+<div class="card"><b>Imprimir rotas</b><div id="pcols" class="row" style="margin:6px 0"></div><div id="phead" class="row mut" style="margin:6px 0"></div>
+<div class="row"><label><input type="checkbox" id="pmap" onchange="LS.s('pmap',this.checked?'1':'0')"> incluir mapa com a rota e as marcações</label><button class="pri" onclick="printRoutes()">Imprimir selecionados</button></div></div>
 <div id="rotas"></div></div><div id="mapa"></div></div></section>
 <section id="v-pac" class="hide"><div class="grid"><div class="card"><b id="ftit">Novo paciente</b><br>
 <label>Nome</label><input id="pn"><label>Telefone</label><input id="pt"><label>Endereço (pode escrever do seu jeito)</label><input id="pa" placeholder="ex.: rua maciel pinheiro 200 centro" onkeydown="if(event.key==='Enter')geo()">
@@ -70,6 +78,7 @@ input.s{width:auto;margin:0}label{font-size:13px;color:var(--mut)}
 <div id="smap" style="height:320px;border-radius:8px;margin-bottom:8px"></div><div id="ocoord" class="mut" style="margin-bottom:8px"></div>
 <button class="pri" onclick="saveOrigin()">Salvar sede</button></div></section>
 </main></div>
+<div id="printArea"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script>
@@ -142,7 +151,7 @@ async function boot(){const{data:{session}}=await db.auth.getSession();session?e
 async function doLogin(){const{error}=await db.auth.signInWithPassword({email:$("em").value.trim(),password:$("pw").value});if(error){$("lerr").textContent=error.message;return}enter()}
 async function logout(){gpsStop();await db.auth.signOut();location.reload()}
 function enter(){$("login").classList.add("hide");$("app").classList.remove("hide");$("dt").value=D;
-$("st").value=LS.g("st","08:00");$("svc").value=LS.g("svc","10");$("ret").checked=LS.g("ret","1")==="1";$("real").checked=LS.g("real","1")==="1";$("line").checked=LS.g("line","0")==="1";
+$("st").value=LS.g("st","08:00");$("svc").value=LS.g("svc","10");$("ret").checked=LS.g("ret","1")==="1";$("real").checked=LS.g("real","1")==="1";$("line").checked=LS.g("line","0")==="1";$("pmap").checked=LS.g("pmap","1")==="1";
 mm=L.map("mapa").setView([ORIGIN.lat,ORIGIN.lng],13);tiles(mm);ml=L.layerGroup().addTo(mm);gl=L.layerGroup().addTo(mm);tab("rotas");loadOrigin().then(()=>{mm.setView([ORIGIN.lat,ORIGIN.lng],13);load()});
 const ch=db.channel("live");
 ["collectors","patients","stops"].forEach(t=>ch.on("postgres_changes",{event:"*",schema:"public",table:t},()=>{clearTimeout(tm);tm=setTimeout(load,200)}));
@@ -158,7 +167,7 @@ function tab(t){["rotas","pac","col","gps","cfg"].forEach(k=>{$("v-"+k).classLis
 if(t==="rotas")setTimeout(()=>mm.invalidateSize(),50);
 if(t==="cfg")initCfg();
 if(t==="pac"){if(!fm){fm=L.map("fmap").setView([ORIGIN.lat,ORIGIN.lng],12);tiles(fm);fm.on("click",e=>setPin(e.latlng.lat,e.latlng.lng))}setTimeout(()=>fm.invalidateSize(),50)}}
-function render(){renderRotas();renderPat();renderCol();renderGps();ensureRoutes()}
+function render(){renderPrintOpts();renderRotas();renderPat();renderCol();renderGps();ensureRoutes()}
 
 /* ---------- rotas ---------- */
 function dirUrl(c){const{ps}=keyOf(c);if(!ps.length)return"#";const q=ps.map(p=>p.lat+","+p.lng),o=ORIGIN.lat+","+ORIGIN.lng,r=$("ret").checked;
@@ -166,7 +175,7 @@ const dest=r?o:q[q.length-1],wp=r?q:q.slice(0,-1);
 return"https://www.google.com/maps/dir/?api=1&travelmode=driving&origin="+o+"&destination="+dest+(wp.length?"&waypoints="+wp.join("%7C"):"")}
 function renderRotas(){const used=new Set(T.map(s=>s.patient_id)),free=P.filter(p=>!used.has(p.id));let h="";
 C.forEach(c=>{const f=info(c),n=f.ps.length;
-h+=`<div class="card"><div class="row"><span class="dot" style="background:${c.color}"></span><b class="grow">${esc(c.name)} <span class="mut">${n?"· "+esc(zone(f.ps)):""}</span></b><button onclick="optim('${c.id}')">Otimizar ordem</button><a class="btn" target="_blank" rel="noopener" href="${dirUrl(c)}">Google Maps</a></div>`;
+h+=`<div class="card"><div class="row"><span class="dot" style="background:${c.color}"></span><b class="grow">${esc(c.name)} <span class="mut">${n?"· "+esc(zone(f.ps)):""}</span></b><button onclick="optim('${c.id}')">Otimizar ordem</button><button onclick="printRoutes(['${c.id}'])">Imprimir</button><a class="btn" target="_blank" rel="noopener" href="${dirUrl(c)}">Google Maps</a></div>`;
 if(n)h+=`<div class="mut" style="margin:4px 0"><b>${n} paradas · ${fd(f.end)} no total · ${(f.dist/1000).toFixed(1)} km</b> · fim ~${clock(f.end)}${f.est?" (estimativa, calculando rota real…)":""}</div><div class="mut">🏥 Saída ${clock(0)} · ${esc(ORIGIN.name)}</div>`;
 f.ss.forEach((s,i)=>{const p=pt(s.patient_id),a=f.arr[i];
 h+=`<div class="stop"><span class="num" style="background:${c.color}">${i+1}</span><div class="grow" style="cursor:pointer" onclick="mm.flyTo([${p.lat},${p.lng}],16)"><b>${esc(p.name)}</b><div class="mut">${esc(p.address)}</div><div class="eta">chega ~${clock(a.at+i*(+$("svc").value||0)*60)} · ${fd(a.leg)} de viagem</div></div><button onclick="mv('${s.id}',-1)">↑</button><button onclick="mv('${s.id}',1)">↓</button><select onchange="mvTo('${s.id}',this.value)"><option value="">Mover…</option>${C.filter(x=>x.id!==c.id).map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join("")}</select><button onclick="rm('${s.id}')">✕</button></div>`});
@@ -261,5 +270,34 @@ const v={name:$("on").value.trim()||"Sede",address:$("oa").value.trim(),lat:opin
 const{error}=await db.from("settings").upsert({key:"origin",value:v});
 if(error){LS.s("origin",JSON.stringify(v));alert("Não consegui salvar no banco ("+error.message+"). Salvei só neste aparelho. Rode o SQL da tabela settings para compartilhar com a equipe.")}
 Object.assign(ORIGIN,v);fit=true;render();$("omsg").textContent="Sede salva."}
+/* ---------- impressão ---------- */
+const pun=new Set();let PM=[];
+const HO=[["data","Data"],["n","Nº de paradas"],["tempo","Tempo total"],["km","Distância"],["saida","Horário de saída"],["fim","Fim previsto"],["zona","Zona"]];
+let ho={data:true,n:true,tempo:true,km:true,saida:true,fim:true,zona:true};try{Object.assign(ho,JSON.parse(LS.g("ho","{}")))}catch(e){}
+function renderPrintOpts(){$("phead").innerHTML="<b>Cabeçalho:</b> "+HO.map(([k,l])=>`<label><input type="checkbox" ${ho[k]?"checked":""} onchange="ho['${k}']=this.checked;LS.s('ho',JSON.stringify(ho))"> ${l}</label>`).join("");$("pcols").innerHTML=C.map(c=>`<label><input type="checkbox" ${pun.has(c.id)?"":"checked"} onchange="this.checked?pun.delete('${c.id}'):pun.add('${c.id}')"> <span class="dot" style="background:${c.color}"></span> ${esc(c.name)}</label>`).join("")||'<span class="mut">Cadastre coletadores.</span>'}
+function printCleanup(){PM.forEach(m=>{try{m.remove()}catch(e){}});PM=[];$("printArea").innerHTML=""}
+window.addEventListener("afterprint",printCleanup);
+async function printRoutes(ids){ids=ids||C.filter(c=>!pun.has(c.id)).map(c=>c.id);if(!ids.length){alert("Marque ao menos um coletador.");return}
+const withMap=$("pmap").checked,svc=(+$("svc").value||0)*60,dt=D.split("-").reverse().join("/"),cs=ids.map(id=>C.find(c=>c.id===id)).filter(Boolean);
+printCleanup();let h="";
+cs.forEach((c,k)=>{const f=info(c),n=f.ps.length,z=n?zone(f.ps):"";
+const est=f.est&&(ho.tempo||ho.fim)?" (estimativa)":"",parts=[];
+if(ho.n)parts.push(n+" paradas");if(ho.tempo)parts.push(fd(f.end)+" no total");if(ho.km)parts.push((f.dist/1000).toFixed(1)+" km");if(ho.saida)parts.push("saída "+clock(0));if(ho.fim)parts.push("fim previsto ~"+clock(f.end));if(ho.zona&&z)parts.push("Zona: "+esc(z));
+h+=`<section class="ps"><h2 style="margin:0 0 4px">🩸 ${esc(c.name)}${ho.data?" — "+dt:""}</h2>`+(n?(parts.length?`<div style="margin-bottom:8px">${parts.join(" · ")}${est}</div>`:""):`<div style="margin-bottom:8px">Sem paradas nesta data.</div>`);
+if(n){h+=`<table class="pt"><tr><th></th><th>Nº</th><th>Chegada</th><th>Paciente</th><th>Telefone</th><th>Endereço</th><th>Viagem</th></tr><tr><td></td><td>🏥</td><td>${clock(0)}</td><td colspan="4"><b>Saída:</b> ${esc(ORIGIN.name)} — ${esc(ORIGIN.address)}</td></tr>`;
+f.ps.forEach((p,i)=>{h+=`<tr><td>☐</td><td>${i+1}</td><td>${clock(f.arr[i].at+i*svc)}</td><td>${esc(p.name)}</td><td>${esc(p.phone)}</td><td>${esc(p.address)}</td><td>${fd(f.arr[i].leg)}</td></tr>`});
+if($("ret").checked)h+=`<tr><td></td><td>🏥</td><td>${clock(f.end)}</td><td colspan="4">Retorno à sede</td></tr>`;
+h+="</table>"}
+if(withMap&&n)h+=`<div class="pm" id="pm${k}"></div>`;
+h+="</section>"});
+$("printArea").innerHTML=h;const waits=[];
+cs.forEach((c,k)=>{const el=$("pm"+k);if(!el)return;const f=info(c);
+const m=L.map(el,{zoomControl:false,fadeAnimation:false,zoomAnimation:false,markerZoomAnimation:false});PM.push(m);
+const t=tiles(m);waits.push(new Promise(r=>{t.once("load",r);setTimeout(r,7000)}));
+const line=[ORIGIN,...f.ps,...($("ret").checked?[ORIGIN]:[])].map(p=>[p.lat,p.lng]),pl=L.polyline(f.geo||line,{color:c.color,weight:4,opacity:.9}).addTo(m);
+L.marker([ORIGIN.lat,ORIGIN.lng],{icon:L.divIcon({className:"",html:'<div class="pin" style="background:#222;width:32px;height:32px;font-size:16px">🏥</div>',iconSize:[32,32],iconAnchor:[16,16]})}).addTo(m);
+f.ps.forEach((p,i)=>L.marker([p.lat,p.lng],{icon:icon(c.color,i+1)}).addTo(m));
+m.fitBounds(pl.getBounds(),{padding:[30,30],animate:false})});
+await Promise.all(waits);await new Promise(r=>setTimeout(r,400));window.print()}
 boot();
 </script></body></html>
