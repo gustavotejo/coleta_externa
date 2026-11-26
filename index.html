@@ -321,7 +321,7 @@ const est=f.est&&(ho.tempo||ho.fim)?" (estimativa)":"",parts=[];
 if(ho.n)parts.push(n+" paradas");if(ho.tempo)parts.push(fd(f.end)+" no total");if(ho.km)parts.push((f.dist/1000).toFixed(1)+" km");if(ho.saida)parts.push("saída "+clock(0));if(ho.fim)parts.push("fim previsto ~"+clock(f.end));if(ho.zona&&z)parts.push("Zona: "+esc(z));
 h+=`<section class="ps"><h2 style="margin:0 0 4px">🩸 ${esc(c.name)}${ho.data?" — "+dt:""}</h2>`+(n?(parts.length?`<div style="margin-bottom:8px">${parts.join(" · ")}${est}</div>`:""):`<div style="margin-bottom:8px">Sem paradas nesta data.</div>`);
 if(n){h+=`<table class="pt"><tr><th></th><th>Nº</th><th>Chegada</th><th>Paciente</th><th>Telefone</th><th>Endereço</th></tr><tr><td></td><td>🏥</td><td>${clock(0)}</td><td colspan="3"><b>Saída:</b> ${esc(ORIGIN.name)} — ${esc(ORIGIN.address)}</td></tr>`;
-f.ps.forEach((p,i)=>{h+=`<tr><td>☐</td><td>${i+1}</td><td style="white-space:nowrap">${clock(f.arr[i].at)}${iv>0?" - "+clock(f.arr[i].at+iv*60):""}</td><td>${esc(p.name)}${f.arr[i].n>1?" <small>(mesmo endereço)</small>":""}</td><td>${esc(p.phone)}</td><td>${esc(ad(p))}</td></tr>`});
+f.ps.forEach((p,i)=>{const x=f.arr[i],first=!x.same,rs=first&&x.n>1?` rowspan="${x.n}"`:"";h+=`<tr><td>☐</td><td>${i+1}</td>`+(first?`<td style="white-space:nowrap"${rs}>${clock(x.at)}${iv>0?" - "+clock(x.at+iv*60):""}</td>`:"")+`<td>${esc(p.name)}</td><td>${esc(p.phone)}</td>`+(first?`<td${rs}>${esc(ad(p))}</td>`:"")+`</tr>`});
 if($("ret").checked)h+=`<tr><td></td><td>🏥</td><td>${clock(f.end)}</td><td colspan="3">Retorno à sede</td></tr>`;
 h+="</table>"}
 if(withMap&&n)h+=`<div class="pm" id="pm${k}"></div>`;
