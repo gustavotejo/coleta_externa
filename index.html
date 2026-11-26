@@ -187,9 +187,11 @@ if(n)h+=`<div class="mut" style="margin:4px 0"><b>${n} paradas · ${fd(f.end)} n
 f.ss.forEach((s,i)=>{const p=pt(s.patient_id),a=f.arr[i];
 h+=`<div class="stop"><span class="num" style="background:${c.color}">${i+1}</span><div class="grow" style="cursor:pointer" onclick="mm.flyTo([${p.lat},${p.lng}],16)"><b>${esc(p.name)}</b><div class="mut">${esc(ad(p))}</div><div class="eta">chega ~${clock(a.at+i*(+$("svc").value||0)*60)} · ${fd(a.leg)} de viagem</div></div><button onclick="mv('${s.id}',-1)">↑</button><button onclick="mv('${s.id}',1)">↓</button><select onchange="mvTo('${s.id}',this.value)"><option value="">Mover…</option>${C.filter(x=>x.id!==c.id).map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join("")}</select><button onclick="rm('${s.id}')">✕</button></div>`});
 h+="</div>"});
-h+=`<div class="card"><div class="row"><b class="grow">Pacientes sem coletador (${free.length})</b><button onclick="selAll()">Marcar todos</button><button onclick="sel.clear();render()">Limpar</button></div>`;
-free.forEach(p=>{h+=`<div class="stop"><input type="checkbox" ${sel.has(p.id)?"checked":""} onchange="this.checked?sel.add('${p.id}'):sel.delete('${p.id}')"><div class="grow"><b>${esc(p.name)}</b><div class="mut">${esc(ad(p))}</div></div><select onchange="assign('${p.id}',this.value)"><option value="">Atribuir a…</option>${C.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join("")}</select></div>`});
-$("rotas").innerHTML=h+"</div>";drawMap()}
+h+=`<div class="card"><div class="row"><b class="grow">Pacientes sem coletador (${free.length})</b><button onclick="selAll()">Marcar todos</button><button onclick="sel.clear();renderFree()">Limpar</button></div><input id="fq" placeholder="Buscar paciente sem coletador…" value="${esc(FQ)}" oninput="FQ=this.value;renderFree()" style="margin:8px 0 4px"><div id="flist" style="max-height:340px;overflow-y:auto"></div>`;
+$("rotas").innerHTML=h+"</div>";renderFree();drawMap()}
+let FQ="";
+function freeList(){const used=new Set(T.map(s=>s.patient_id)),q=FQ.toLowerCase().trim();return P.filter(p=>!used.has(p.id)&&(!q||(p.name+" "+(p.address||"")+" "+(p.full_address||"")+" "+(p.phone||"")).toLowerCase().includes(q)))}
+function renderFree(){const el=$("flist");if(!el)return;const l=freeList();el.innerHTML=l.map(p=>`<div class="stop"><input type="checkbox" ${sel.has(p.id)?"checked":""} onchange="this.checked?sel.add('${p.id}'):sel.delete('${p.id}')"><div class="grow"><b>${esc(p.name)}</b><div class="mut">${esc(ad(p))}</div></div><select onchange="assign('${p.id}',this.value)"><option value="">Atribuir a…</option>${C.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join("")}</select></div>`).join("")||'<p class="mut">Nenhum paciente encontrado.</p>'}
 function drawMap(){ml.clearLayers();const pts=[[ORIGIN.lat,ORIGIN.lng]],used=new Set(T.map(s=>s.patient_id));
 L.marker([ORIGIN.lat,ORIGIN.lng],{icon:L.divIcon({className:"",html:'<div class="pin" style="background:#222;width:32px;height:32px;font-size:16px">🏥</div>',iconSize:[32,32],iconAnchor:[16,16]}),zIndexOffset:900}).bindPopup(`<b>${esc(ORIGIN.name)}</b><br>${esc(ORIGIN.address)}`).addTo(ml);
 P.filter(p=>!used.has(p.id)).forEach(p=>{L.circleMarker([p.lat,p.lng],{radius:6,color:"#fff",weight:2,fillColor:"#9aa1ad",fillOpacity:1}).bindPopup(`<b>${esc(p.name)}</b><br>${esc(ad(p))}<br><i>sem coletador</i>`).addTo(ml);pts.push([p.lat,p.lng])});
@@ -207,7 +209,7 @@ function mvTo(id,cid){if(cid)go(db.from("stops").update({collector_id:cid,positi
 function rm(id){go(db.from("stops").delete().eq("id",id))}
 function optim(cid){const ss=stopsOf(cid).filter(s=>pt(s.patient_id)),o=tour(ss.map(s=>pt(s.patient_id)));
 go(...o.map((p,k)=>{const s=ss.find(x=>x.patient_id===p.id);return s.position!==k?db.from("stops").update({position:k}).eq("id",s.id):null}).filter(Boolean))}
-function selAll(){P.filter(p=>!T.some(s=>s.patient_id===p.id)).forEach(p=>sel.add(p.id));render()}
+function selAll(){freeList().forEach(p=>sel.add(p.id));renderFree()}
 async function autoDist(){const redo=$("redo").checked,pool=new Set(sel);if(redo)T.forEach(s=>pool.add(s.patient_id));
 const ps=[...pool].map(pt).filter(Boolean),cs=C.filter(c=>!dun.has(c.id));if(!cs.length||!ps.length){alert("Marque os pacientes do dia (caixinhas) e ao menos um coletador.");return}
 const v=$("zs").value,g=split(ps,cs.length,v===""?null:+v,+$("svc").value||0),off=cs.map(c=>redo?0:stopsOf(c.id).length);
