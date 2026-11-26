@@ -3,9 +3,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Rotas de Coleta</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+<script>try{var _t=localStorage.getItem("theme");if(_t)document.documentElement.setAttribute("data-theme",_t)}catch(e){}</script>
 <style>
 :root{--bg:#f6f7f9;--card:#fff;--tx:#1c1f24;--mut:#6a7280;--bd:#dde1e7;--ac:#c0392b}
-@media (prefers-color-scheme:dark){:root{--bg:#14161a;--card:#1d2026;--tx:#e8eaed;--mut:#9aa1ad;--bd:#303540;--ac:#e5675a}}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14161a;--card:#1d2026;--tx:#e8eaed;--mut:#9aa1ad;--bd:#303540;--ac:#e5675a;color-scheme:dark}:root:not([data-theme="light"]) .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.95) contrast(.9)}}
+:root[data-theme="dark"]{--bg:#14161a;--card:#1d2026;--tx:#e8eaed;--mut:#9aa1ad;--bd:#303540;--ac:#e5675a;color-scheme:dark}
+:root[data-theme="dark"] .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.95) contrast(.9)}
+.thm{padding:5px 10px;line-height:1}
 body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 header{display:flex;gap:8px;align-items:center;padding:12px 16px;flex-wrap:wrap}
 h1{font-size:18px;margin:0 12px 0 0}main{padding:0 16px 24px;max-width:1300px;margin:auto}
@@ -36,11 +40,11 @@ input.s{width:auto;margin:0}label{font-size:13px;color:var(--mut)}
 #login{max-width:340px;margin:12vh auto;padding:0 16px}
 .stop[draggable=true]{cursor:grab}.stop.dt{box-shadow:inset 0 2px 0 var(--ac)}.stop.db{box-shadow:inset 0 -2px 0 var(--ac)}.stop.dragging{opacity:.4}.card.dropcard{outline:2px dashed var(--ac);outline-offset:-2px}.grip{cursor:grab;color:var(--mut);user-select:none;flex:none;font-size:16px;line-height:1}
 </style></head><body>
-<div id="login" class="hide card"><h1>🩸 Rotas de Coleta</h1><label>Usuário ou e-mail</label><input id="em" type="text" autocapitalize="none" autocomplete="username" placeholder="ex.: ana"><label>Senha</label><input id="pw" type="password" onkeydown="if(event.key==='Enter')doLogin()"><button class="pri" onclick="doLogin()">Entrar</button> <span id="lerr" class="mut"></span></div>
+<div id="login" class="hide card"><button class="thm" onclick="toggleTheme()" title="Alternar modo escuro/claro" style="float:right">🌙</button><h1>🩸 Rotas de Coleta</h1><label>Usuário ou e-mail</label><input id="em" type="text" autocapitalize="none" autocomplete="username" placeholder="ex.: ana"><label>Senha</label><input id="pw" type="password" onkeydown="if(event.key==='Enter')doLogin()"><button class="pri" onclick="doLogin()">Entrar</button> <span id="lerr" class="mut"></span></div>
 <div id="app" class="hide">
 <header><h1>🩸 Rotas de Coleta</h1>
 <div class="tabs row"><button id="t-me" class="hide" onclick="tab('me')">Minha rota</button><button id="t-rotas" onclick="tab('rotas')">Rotas</button><button id="t-pac" onclick="tab('pac')">Pacientes</button><button id="t-col" onclick="tab('col')">Coletadores</button><button id="t-gps" onclick="tab('gps')">GPS</button><button id="t-cfg" onclick="tab('cfg')">Sede</button></div>
-<span id="live" class="mut"></span><button onclick="logout()" style="margin-left:auto">Sair</button></header>
+<span id="live" class="mut"></span><button class="thm" onclick="toggleTheme()" title="Alternar modo escuro/claro" style="margin-left:auto">🌙</button><button onclick="logout()">Sair</button></header>
 <main>
 <section id="v-rotas"><div class="card row">
 <label>Data</label><input type="date" id="dt" class="s" onchange="D=this.value;fit=true;load()">
@@ -361,5 +365,11 @@ else{const arr=stopsOf(cid);if(idx<0||idx>arr.length)idx=arr.length;
 arr.forEach((x,j)=>{if(j>=idx)q.push(db.from("stops").update({position:j+1}).eq("id",x.id))});
 q.push(db.from("stops").insert({route_date:D,collector_id:cid,patient_id:id,position:idx}))}
 if(!q.length){render();return}render();go(...q)}
+/* ---------- modo escuro ---------- */
+function isDark(){const t=document.documentElement.getAttribute("data-theme");return t?t==="dark":matchMedia("(prefers-color-scheme: dark)").matches}
+function themeBtns(){const d=isDark();document.querySelectorAll(".thm").forEach(b=>{b.textContent=d?"☀️":"🌙";b.title=d?"Mudar para modo claro":"Mudar para modo escuro"})}
+function toggleTheme(){const n=isDark()?"light":"dark";document.documentElement.setAttribute("data-theme",n);LS.s("theme",n);themeBtns()}
+try{matchMedia("(prefers-color-scheme: dark)").addEventListener("change",themeBtns)}catch(e){}
+themeBtns();
 boot();
 </script></body></html>
