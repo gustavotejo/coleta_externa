@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#c0392b">
+<meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Rotas"><meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="apple-touch-icon" href="icon-maskable-512.png">
+<title>Rotas de Coleta</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+<script>try{var _t=localStorage.getItem("theme");if(_t)document.documentElement.setAttribute("data-theme",_t)}catch(e){}</script>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--tx:#1c1f24;--mut:#6a7280;--bd:#dde1e7;--ac:#c0392b}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14161a;--card:#1d2026;--tx:#e8eaed;--mut:#9aa1ad;--bd:#303540;--ac:#e5675a;color-scheme:dark}:root:not([data-theme="light"]) .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.95) contrast(.9)}}
+:root[data-theme="dark"]{--bg:#14161a;--card:#1d2026;--tx:#e8eaed;--mut:#9aa1ad;--bd:#303540;--ac:#e5675a;color-scheme:dark}
+:root[data-theme="dark"] .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.95) contrast(.9)}
+.thm{padding:5px 10px;line-height:1}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{display:flex;gap:8px;align-items:center;padding:12px 16px;flex-wrap:wrap}
+h1{font-size:18px;margin:0 12px 0 0}main{padding:0 16px 24px;max-width:1300px;margin:auto}
+.tabs button.on{background:var(--ac);border-color:var(--ac);color:#fff}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:14px}
+@media(max-width:850px){.grid{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:12px;margin-bottom:12px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.grow{flex:1;min-width:120px}
+.mut{color:var(--mut);font-size:13px}.hide{display:none}
+.dot{width:12px;height:12px;border-radius:50%;display:inline-block}
+.stop{display:flex;gap:8px;align-items:center;padding:8px 0;border-top:1px solid var(--bd)}
+.num{width:24px;height:24px;border-radius:50%;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;flex:none}
+button,select,input{font:inherit;color:var(--tx);background:var(--card);border:1px solid var(--bd);border-radius:7px;padding:6px 9px}
+button{cursor:pointer}button.pri{background:var(--ac);border-color:var(--ac);color:#fff}
+.btn{border:1px solid var(--bd);border-radius:7px;padding:5px 9px;font-size:13px;text-decoration:none;color:var(--tx)}
+input{width:100%;box-sizing:border-box;margin:4px 0 8px}input[type=checkbox]{width:auto;margin:0}
+input.s{width:auto;margin:0}label{font-size:13px;color:var(--mut)}
+#mapa{height:calc(100vh - 120px);min-height:380px;border-radius:8px;position:sticky;top:8px}#fmap{height:300px;border-radius:8px;margin-bottom:8px}
+.pin{width:26px;height:26px;border-radius:50%;color:#fff;font:700 12px system-ui;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 1px 4px #0006}
+.car{width:30px;height:30px;border-radius:50%;background:#fff;border:3px solid;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 1px 4px #0006}
+.wpp-soon{opacity:.35;cursor:default;display:inline-flex;align-items:center;margin-left:auto;padding:0 2px;flex:none}.dupbox{border-radius:8px;padding:8px 10px;margin:-2px 0 8px;font-size:13px}.dupbox.bad{background:#c0392b22;border:1px solid #c0392b}.dupbox.warn{background:#b9770e22;border:1px solid #b9770e}.dupbox .row{margin-top:4px}.eta{font-size:12px;color:var(--ac);font-weight:600}
+#printArea{position:absolute;left:-10000px;top:0;width:680px;background:#fff;color:#000;font:13px/1.35 system-ui,Arial,sans-serif}
+#printArea *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.pt{width:100%;border-collapse:collapse;font-size:12px}.pt th,.pt td{border:1px solid #888;padding:4px 6px;text-align:left;vertical-align:top}.pt th{background:#eee}
+.pm{width:680px;height:440px;margin-top:10px;border:1px solid #888;page-break-inside:avoid}.ps{page-break-after:always}.ps:last-child{page-break-after:auto}
+@page{margin:1.5cm}
+@media print{#app,#login{display:none!important}#printArea{position:static;left:auto;width:auto}body{background:#fff}}
+#login{max-width:340px;margin:12vh auto;padding:0 16px}
+.stop[draggable=true]{cursor:grab}.stop.dt{box-shadow:inset 0 2px 0 var(--ac)}.stop.db{box-shadow:inset 0 -2px 0 var(--ac)}.stop.dragging{opacity:.4}.card.dropcard{outline:2px dashed var(--ac);outline-offset:-2px}.grip{cursor:grab;color:var(--mut);user-select:none;flex:none;font-size:16px;line-height:1}
+body{padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)}
+.big{padding:12px 22px;font-size:16px}.hint{font-size:13px;background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:8px 12px;margin:8px 16px}
+@media(max-width:700px){
+body{font-size:16px}header{padding:10px 12px;gap:6px}
+.tabs.row{flex-wrap:nowrap;overflow-x:auto;max-width:100%;-webkit-overflow-scrolling:touch}.tabs button{flex:none}
+button,select,input:not([type=checkbox]){min-height:42px}input,select{font-size:16px}
+main{padding:0 10px 24px}.card{padding:10px}.stop{flex-wrap:wrap}
+#mapa{position:static;height:60vh;min-height:300px}#fmap,#smap{height:260px}
+.btn{padding:10px 12px;font-size:14px}input[type=checkbox]{width:20px;height:20px}}
+@media(pointer:coarse){.grip{display:none}.stop[draggable=true]{cursor:auto}}
+</style></head><body>
+<div id="login" class="hide card"><button class="thm" onclick="toggleTheme()" title="Alternar modo escuro/claro" style="float:right">🌙</button><h1>🩸 Rotas de Coleta</h1><label>Usuário ou e-mail</label><input id="em" type="text" autocapitalize="none" autocomplete="username" placeholder="ex.: ana"><label>Senha</label><input id="pw" type="password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"><button class="pri" onclick="doLogin()">Entrar</button> <span id="lerr" class="mut"></span></div>
+<div id="app" class="hide"><div id="ioshint" class="hint hide">📲 <b>Instalar no iPhone:</b> toque em <b>Compartilhar</b> (quadrado com seta) e depois em <b>Adicionar à Tela de Início</b>. <button onclick="LS.s('ioshint','0');this.parentNode.classList.add('hide')">Fechar</button></div>
+<header><h1>🩸 Rotas de Coleta</h1>
+<div class="tabs row"><button id="t-me" class="hide" onclick="tab('me')">Minha rota</button><button id="t-rotas" onclick="tab('rotas')">Rotas</button><button id="t-pac" onclick="tab('pac')">Pacientes</button><button id="t-col" onclick="tab('col')">Coletadores</button><button id="t-gps" onclick="tab('gps')">GPS</button><button id="t-cfg" onclick="tab('cfg')">Sede</button></div>
+<button id="inst" class="hide thm" onclick="installApp()">📲 Instalar app</button><span id="live" class="mut"></span><button class="thm" onclick="toggleTheme()" title="Alternar modo escuro/claro" style="margin-left:auto">🌙</button><button onclick="logout()">Sair</button></header>
+<main>
+<section id="v-rotas"><div class="card row">
+<label>Data</label><input type="date" id="dt" class="s" onchange="D=this.value;fit=true;load()">
+<label>Saída da sede</label><input type="time" id="st" class="s" onchange="opt()">
+<label>Min. por coleta</label><input type="number" id="svc" class="s" style="width:64px" min="0" onchange="opt()">
+<label><input type="checkbox" id="ret" onchange="opt()"> voltar à sede</label>
+<label><input type="checkbox" id="real" onchange="opt()"> rota real</label>
+<label><input type="checkbox" id="line" onchange="opt()"> linha reta</label></div>
+<div class="grid"><div><div class="card"><b>Distribuição automática por região</b>
+<div class="row" style="margin-top:6px"><label>Coletador 1 começa pela zona</label><select id="zs" class="s"><option value="">Automático (melhor divisão)</option><option value="0">Norte</option><option value="90">Leste</option><option value="180">Sul</option><option value="270">Oeste</option></select></div>
+<div class="row" style="margin:6px 0"><b style="font-size:13px">Coletadores que vão sair:</b><span id="dcols" class="row"></span></div>
+<div class="row" style="margin:6px 0"><label><input type="checkbox" id="redo" checked> permitir trocar pacientes entre coletadores (inclui os já atribuídos do dia)</label></div>
+<button class="pri" onclick="autoDist()">Distribuir os pacientes marcados</button>
+<p class="mut" style="margin:6px 0 0">Escolha os coletadores que vão sair e marque abaixo os pacientes do dia. Com a troca entre coletadores ligada, quem não for marcado fica sem paradas e os pacientes dele são redistribuídos. O sistema divide por região, depois testa mover e trocar pacientes entre coletadores para reduzir o tempo total e equilibrar as rotas, e ordena cada rota pelo caminho mais curto.</p></div>
+<div class="card"><b>Imprimir rotas</b><div id="pcols" class="row" style="margin:6px 0"></div><div id="phead" class="row mut" style="margin:6px 0"></div><div class="row" style="margin:6px 0"><label>Intervalo de chegada na impressão (min)</label><input type="number" id="pint" class="s" style="width:70px" min="0" max="240" onchange="LS.s('pint',this.value)"><span class="mut">0 = só o horário previsto</span></div>
+<div class="row"><label><input type="checkbox" id="pmap" onchange="LS.s('pmap',this.checked?'1':'0')"> incluir mapa com a rota e as marcações</label><button class="pri" onclick="printRoutes()"><svg viewBox="0 0 24 24" width="16" height="16" fill="#fff" style="vertical-align:-3px;margin-right:4px" aria-hidden="true"><path d="M19 8H5a3 3 0 0 0-3 3v6h4v4h12v-4h4v-6a3 3 0 0 0-3-3zM16 19H8v-5h8v5zm3-7a1 1 0 1 1 0-2 1 1 0 0 1 0 2zM18 3H6v4h12V3z"/></svg>Imprimir selecionados</button></div></div>
+<div id="rotas"></div></div><div id="mapa"></div></div></section>
+<section id="v-pac" class="hide"><div class="grid"><div class="card"><b id="ftit">Novo paciente</b><br>
+<label>Nome</label><input id="pn" autocomplete="off" oninput="dupCheck()"><div id="dup"></div><label>Telefone</label><input id="pt"><label>Endereço completo (aparece nas rotas e no WhatsApp)</label><input id="pf" placeholder="Rua, nº, bairro, complemento, ponto de referência"><label>Endereço para localizar no mapa (pode escrever do seu jeito)</label><input id="pa" placeholder="ex.: rua maciel pinheiro 200 centro" onkeydown="if(event.key==='Enter')geo()">
+<div class="row"><button onclick="geo()">Buscar endereço</button><span id="gmsg" class="mut"></span></div><div id="sug" style="margin-top:6px"></div>
+<label>Ou cole as coordenadas / link do Google Maps</label><div class="row"><input id="pc" class="grow" style="margin:0" placeholder="-7.2306, -35.8811"><button onclick="pasteLL()">Usar</button></div>
+<p class="mut">Confira o pino: clique no mapa ou arraste-o até o local exato.</p>
+<div id="fmap"></div><div id="pcoord" class="mut" style="margin-bottom:8px">Sem local marcado.</div>
+<div class="row"><button class="pri" onclick="savePat()">Salvar</button><button onclick="clearForm()">Limpar</button></div></div>
+<div><input id="q" placeholder="Buscar paciente…" oninput="renderPat()"><div id="plist"></div></div></div></section>
+<section id="v-col" class="hide"><div class="card" style="max-width:520px"><div class="row"><input id="cn" placeholder="Nome do novo coletador" style="margin:0" class="grow"><input id="cp" placeholder="Telefone (WhatsApp)" style="margin:0;max-width:190px"><button class="pri" onclick="addCol()">Adicionar</button></div></div><div id="clist" style="max-width:520px"></div></section>
+<section id="v-gps" class="hide"><div class="card" style="max-width:560px"><b>Compartilhar a localização deste aparelho</b>
+<p class="mut">Abra este app no celular do coletador, escolha o nome dele e toque em Iniciar. Mantenha a tela ligada e a página aberta. A posição aparece em tempo real no mapa da central.</p>
+<div class="row"><b id="gpsname"></b><select id="gpsc" class="s"></select><button class="pri big" onclick="gpsStart()">▶ Iniciar GPS</button><button class="big" onclick="gpsStop()">■ Parar</button></div><div class="row" style="margin-top:8px"><label><input type="checkbox" id="gpsauto" onchange="LS.s('gpsauto',this.checked?'1':'0')"> iniciar sozinho ao abrir o app</label></div><p id="gpsmsg" class="mut"></p></div>
+<div class="card" style="max-width:560px"><b>Últimas posições</b><div id="gpslist"></div></div></section>
+<section id="v-me" class="hide"><div class="row" style="margin-bottom:10px"><label>Data</label><input type="date" id="dt2" class="s" onchange="setD(this.value)"><button onclick="setD(0)">Hoje</button><button onclick="setD(1)">Amanhã</button></div><div id="me" style="max-width:640px"></div></section>
+<section id="v-cfg" class="hide"><div class="card" style="max-width:640px"><b>Endereço de saída (sede)</b>
+<p class="mut">Todas as rotas saem e voltam deste ponto. A mudança vale para toda a equipe.</p>
+<label>Nome</label><input id="on"><label>Endereço</label><input id="oa" placeholder="Rua, número, bairro, cidade" onkeydown="if(event.key==='Enter')ogeo()">
+<div class="row"><button onclick="ogeo()">Buscar endereço</button><span id="omsg" class="mut"></span></div><div id="osug" style="margin-top:6px"></div>
+<label>Ou cole as coordenadas / link do Google Maps</label><div class="row"><input id="oc" class="grow" style="margin:0" placeholder="-7.2306, -35.8811"><button onclick="opaste()">Usar</button></div>
+<p class="mut">Confira o pino: clique no mapa ou arraste-o até o local exato da sede.</p>
+<div id="smap" style="height:320px;border-radius:8px;margin-bottom:8px"></div><div id="ocoord" class="mut" style="margin-bottom:8px"></div>
+<button class="pri" onclick="saveOrigin()">Salvar sede</button></div></section>
+</main></div>
+<div id="printArea"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+// ====== CONFIGURAÇÃO ======
+const SUPABASE_URL="https://gqpvcqztxbyafkhcvawm.supabase.co",SUPABASE_KEY="sb_publishable_4i3KzIZOGcDj935Zvwx5QA__rHFV1b1";
+// Sede padrão (usada só até você salvar outra na aba "Sede").
+const ORIGIN={name:"Sangue Centro (sede)",address:"Rua Sandra Borborema, 61 - Centro, Campina Grande - PB, 58400-122",lat:-7.2306,lng:-35.8811};
+// Opcional: chave do Google (Geocoding API) para busca de endereço mais precisa. Deixe vazio para usar a busca gratuita.
+const GOOGLE_KEY="";
+// ==========================
+const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const COLORS=["#c0392b","#2874a6","#1e8449","#b9770e","#7d3c98","#117a8b"];
+const $=i=>document.getElementById(i);
+const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const LS={g(k,d){try{const v=localStorage.getItem(k);return v==null?d:v}catch(e){return d}},s(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+const tomorrow=()=>{const d=new Date();d.setDate(d.getDate()+1);return d.toLocaleDateString("sv-SE")};
+let P=[],C=[],T=[],POS=[],SUG=[],D=tomorrow(),editId=null,pin=null,fit=true,mm,ml,gl,fm,fmk,tm,tp,gpsW=null,gpsT=0;
+const sel=new Set(),RC=new Map(),pend=new Set();
+const pt=id=>P.find(p=>p.id===id),ad=p=>(p&&(p.full_address||p.address))||"";
+const stopsOf=cid=>T.filter(s=>s.collector_id===cid).sort((a,b)=>a.position-b.position);
+const tiles=m=>L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(m);
+const icon=(col,t)=>L.divIcon({className:"",html:`<div class="pin" style="background:${col}">${t}</div>`,iconSize:[26,26],iconAnchor:[13,13]});
+const fd=s=>{const m=Math.round(s/60),h=Math.floor(m/60);return h?h+"h"+String(m%60).padStart(2,"0"):m+" min"};
+const clock=add=>{const[h,m]=($("st").value||"08:00").split(":").map(Number),t=h*60+m+Math.round(add/60);return String(Math.floor(t/60)%24).padStart(2,"0")+":"+String(t%60).padStart(2,"0")};
+const ago=s=>{const m=Math.round((Date.now()-new Date(s))/60000);return m<1?"agora":m<60?"há "+m+" min":"há "+Math.round(m/60)+" h"};
+
+/* ---------- geometria e otimização ---------- */
+const hav=(a,b)=>{const R=6371,t=Math.PI/180,dl=(b.lat-a.lat)*t,dn=(b.lng-a.lng)*t,x=Math.sin(dl/2)**2+Math.cos(a.lat*t)*Math.cos(b.lat*t)*Math.sin(dn/2)**2;return 2*R*Math.asin(Math.sqrt(x))};
+function bearing(p){const t=Math.PI/180,dn=(p.lng-ORIGIN.lng)*t,y=Math.sin(dn)*Math.cos(p.lat*t),x=Math.cos(ORIGIN.lat*t)*Math.sin(p.lat*t)-Math.sin(ORIGIN.lat*t)*Math.cos(p.lat*t)*Math.cos(dn);return(Math.atan2(y,x)/t+360)%360}
+function tour(ps){let rest=ps.slice(),cur=ORIGIN;const o=[];
+while(rest.length){let bi=0,bd=1e9;rest.forEach((p,i)=>{const d=hav(cur,p);if(d<bd){bd=d;bi=i}});cur=rest.splice(bi,1)[0];o.push(cur)}
+const f=[ORIGIN,...o,ORIGIN];let imp=true,n=0;
+while(imp&&n++<50){imp=false;for(let i=1;i<f.length-2;i++)for(let j=i+1;j<f.length-1;j++){
+const d=hav(f[i-1],f[i])+hav(f[j],f[j+1])-hav(f[i-1],f[j])-hav(f[i],f[j+1]);
+if(d>1e-9){f.splice(i,j-i+1,...f.slice(i,j+1).reverse());imp=true}}}
+return f.slice(1,-1)}
+const tlen=o=>{let s=0,c=ORIGIN;o.forEach(p=>{s+=hav(c,p);c=p});return s+hav(c,ORIGIN)};
+function split(ps,k,start,svc){const n=ps.length,b=ps.map(p=>({p,a:bearing(p)}));
+const run=s=>{const arr=b.map(x=>({p:x.p,a:(x.a-s+360)%360})).sort((u,v)=>u.a-v.a).map(x=>x.p),g=[];let i=0;
+for(let j=0;j<k;j++){const m=Math.floor(n/k)+(j<n%k?1:0);g.push(arr.slice(i,i+m));i+=m}return g.map(tour)};
+if(start!=null)return improve(run(start),svc);
+let best=null,bc=1e18;b.forEach(x=>{const g=run(x.a),c=g.reduce((s,q)=>s+tlen(q),0);if(c<bc){bc=c;best=g}});return improve(best,svc)}
+function improve(g,svc){const tm=q=>tlen(q)*2.7+q.length*svc,cost=gs=>{const t=gs.map(tm);return t.reduce((a,b)=>a+b,0)*.3+Math.max(...t)};
+let cur=cost(g),pass=0,found=true;
+while(found&&pass++<40){found=false;
+search:for(let a=0;a<g.length;a++)for(let i=0;i<g[a].length;i++)for(let b=0;b<g.length;b++){if(a===b)continue;const p=g[a][i];
+let t=g.slice();t[a]=tour(g[a].filter((_,x)=>x!==i));t[b]=tour([...g[b],p]);let c=cost(t);
+if(c<cur-1e-6){g=t;cur=c;found=true;break search}
+for(let j=0;j<g[b].length;j++){const q=g[b][j];t=g.slice();t[a]=tour(g[a].map((x,y)=>y===i?q:x));t[b]=tour(g[b].map((x,y)=>y===j?p:x));c=cost(t);
+if(c<cur-1e-6){g=t;cur=c;found=true;break search}}}}
+return g}
+function zone(ps){const c={};ps.forEach(p=>{const d=hav(ORIGIN,p)<.8?"Centro":(b=>b<45||b>=315?"Norte":b<135?"Leste":b<225?"Sul":"Oeste")(bearing(p));c[d]=(c[d]||0)+1});
+return Object.entries(c).filter(([k,v])=>v/ps.length>=.25).sort((a,b)=>b[1]-a[1]).map(x=>x[0]).join(" · ")}
+
+/* ---------- rota real (OSRM) ---------- */
+function keyOf(c){const ss=stopsOf(c.id).filter(s=>pt(s.patient_id)),ps=ss.map(s=>pt(s.patient_id)),pts=[ORIGIN,...ps,...($("ret").checked?[ORIGIN]:[])];
+return{ss,ps,pts,k:pts.map(p=>p.lng.toFixed(5)+","+p.lat.toFixed(5)).join(";")}}
+async function ensureRoutes(){for(const c of C){const{ps,k}=keyOf(c),r=RC.get(k);
+if(!ps.length||pend.has(k)||(r&&!(r.err&&Date.now()-r.t>30000)))continue;pend.add(k);
+try{const x=await fetch("https://router.project-osrm.org/route/v1/driving/"+k+"?overview=full&geometries=geojson"),j=await x.json();if(j.code!=="Ok")throw 0;const rt=j.routes[0];
+RC.set(k,{legs:rt.legs.map(l=>l.duration),dist:rt.distance,geo:rt.geometry.coordinates.map(q=>[q[1],q[0]])})}catch(e){RC.set(k,{err:1,t:Date.now()})}
+pend.delete(k);render()}}
+function info(c){const{ss,ps,pts,k}=keyOf(c);let r=RC.get(k),est=false;
+if(!r||r.err){est=true;r={legs:pts.slice(1).map((p,i)=>hav(pts[i],p)*1.35/30*3600),dist:pts.slice(1).reduce((s,p,i)=>s+hav(pts[i],p)*1350,0),geo:null}}
+const svc=(+$("svc").value||0)*60;let t=0;const arr=[];ps.forEach((p,i)=>{t+=r.legs[i];arr.push({at:t,leg:r.legs[i]});t+=svc});
+const back=$("ret").checked?r.legs[ps.length]:0;return{ss,ps,arr,end:t+back,dist:r.dist,geo:r.geo,est}}
+
+/* ---------- login e carga ---------- */
+async function boot(){const{data:{session}}=await db.auth.getSession();if(session)enter();else{$("em").value=LS.g("lastuser","");$("login").classList.remove("hide")}}
+async function doLogin(){const{error}=await db.auth.signInWithPassword({email:(v=>(v.includes("@")?v:v+"@coletaexterna.com").toLowerCase())($("em").value.trim()),password:$("pw").value});if(error){$("lerr").textContent=error.message;return}LS.s("lastuser",$("em").value.trim());enter()}
+async function logout(){gpsStop();await db.auth.signOut();location.reload()}
+let ROLE="admin",TABS=["me","gps"];
+async function enter(){try{const ss=await db.auth.getSession(),r=await db.from("profiles").select("role,tabs").eq("user_id",ss.data.session.user.id).maybeSingle();
+if(!r.error){if(!r.data){alert("Seu usuário ainda não tem permissão de acesso. Fale com o administrador.");await db.auth.signOut();location.reload();return}
+ROLE=r.data.role==="collector"?"collector":"admin";if(r.data.tabs&&r.data.tabs.length)TABS=r.data.tabs}}catch(e){}
+if(ROLE==="collector")D=new Date().toLocaleDateString("sv-SE");
+$("login").classList.add("hide");$("app").classList.remove("hide");$("dt").value=D;$("dt2").value=D;
+$("st").value=LS.g("st","08:00");$("svc").value=LS.g("svc","10");$("ret").checked=LS.g("ret","1")==="1";$("real").checked=LS.g("real","1")==="1";$("line").checked=LS.g("line","0")==="1";$("pmap").checked=LS.g("pmap","1")==="1";$("pint").value=LS.g("pint","20");
+mm=L.map("mapa").setView([ORIGIN.lat,ORIGIN.lng],13);tiles(mm);ml=L.layerGroup().addTo(mm);gl=L.layerGroup().addTo(mm);if(ROLE==="collector"){["t-rotas","t-pac","t-col","t-cfg"].forEach(i=>$(i).classList.add("hide"));$("t-me").classList.toggle("hide",!TABS.includes("me"));$("t-gps").classList.toggle("hide",!TABS.includes("gps"));tab(TABS.includes("me")?"me":"gps")}else tab("rotas");loadOrigin().then(()=>{mm.setView([ORIGIN.lat,ORIGIN.lng],13);load()});
+const ch=db.channel("live");
+["collectors","patients","stops"].forEach(t=>ch.on("postgres_changes",{event:"*",schema:"public",table:t},()=>{clearTimeout(tm);tm=setTimeout(load,200)}));
+ch.on("postgres_changes",{event:"*",schema:"public",table:"positions"},()=>{clearTimeout(tp);tp=setTimeout(loadPos,200)});
+ch.on("postgres_changes",{event:"*",schema:"public",table:"settings"},()=>loadOrigin().then(()=>{fit=true;load()}));
+ch.subscribe(s=>{$("live").textContent=s==="SUBSCRIBED"?"● ao vivo":"○ reconectando…"});setInterval(()=>{drawCars();renderGps()},30000)}
+function opt(){LS.s("st",$("st").value);LS.s("svc",$("svc").value);LS.s("ret",$("ret").checked?"1":"0");LS.s("real",$("real").checked?"1":"0");LS.s("line",$("line").checked?"1":"0");render()}
+async function load(){const[p,c,t]=await Promise.all([db.from("patients").select("*").order("name"),db.from("collectors").select("*").order("created_at"),db.from("stops").select("*").eq("route_date",D)]);
+const e=p.error||c.error||t.error;if(e){alert("Erro: "+e.message);return}P=p.data;C=c.data;T=t.data;render();loadPos()}
+async function loadPos(){const r=await db.from("positions").select("*");if(!r.error){POS=r.data;drawCars();renderGps()}}
+async function go(...qs){const r=await Promise.all(qs);r.forEach(x=>{if(x&&x.error)alert(x.error.message)});load()}
+function tab(t){["rotas","pac","col","gps","cfg","me"].forEach(k=>{$("v-"+k).classList.toggle("hide",k!==t);$("t-"+k).classList.toggle("on",k===t)});
+if(t==="rotas")setTimeout(()=>mm.invalidateSize(),50);
+if(t==="cfg")initCfg();
+if(t==="pac"){if(!fm){fm=L.map("fmap").setView([ORIGIN.lat,ORIGIN.lng],12);tiles(fm);fm.on("click",e=>setPin(e.latlng.lat,e.latlng.lng))}setTimeout(()=>fm.invalidateSize(),50)}}
+function render(){if(ROLE==="collector"){renderMe();renderGps();return}renderDistOpts();renderPrintOpts();renderRotas();renderPat();renderCol();renderGps();ensureRoutes()}
+
+/* ---------- rotas ---------- */
+function dirUrl(c){const{ps}=keyOf(c);if(!ps.length)return"#";const q=ps.map(p=>p.lat+","+p.lng),o=ORIGIN.lat+","+ORIGIN.lng,r=$("ret").checked;
+const dest=r?o:q[q.length-1],wp=r?q:q.slice(0,-1);
+return"https://www.google.com/maps/dir/?api=1&travelmode=driving&origin="+o+"&destination="+dest+(wp.length?"&waypoints="+wp.join("%7C"):"")}
+function renderRotas(){const used=new Set(T.map(s=>s.patient_id)),free=P.filter(p=>!used.has(p.id));let h="";
+C.forEach(c=>{const f=info(c),n=f.ps.length;
+h+=`<div class="card" ondragover="dragO(event,this)" ondragleave="dragL(this)" ondrop="dropOn(event,'${c.id}',-1)"><div class="row"><span class="dot" style="background:${c.color}"></span><b class="grow">${esc(c.name)} <span class="mut">${n?"· "+esc(zone(f.ps)):""}</span></b><button onclick="optim('${c.id}')">Otimizar ordem</button><button onclick="printRoutes(['${c.id}'])"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="vertical-align:-3px;margin-right:4px" aria-hidden="true"><path d="M19 8H5a3 3 0 0 0-3 3v6h4v4h12v-4h4v-6a3 3 0 0 0-3-3zM16 19H8v-5h8v5zm3-7a1 1 0 1 1 0-2 1 1 0 0 1 0 2zM18 3H6v4h12V3z"/></svg>Imprimir</button><button onclick="sendWpp('${c.id}')"><svg viewBox="0 0 24 24" width="16" height="16" fill="#25D366" style="vertical-align:-3px;margin-right:4px" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>WhatsApp</button><a class="btn" target="_blank" rel="noopener" href="${dirUrl(c)}">Google Maps</a></div>`;
+if(n)h+=`<div class="mut" style="margin:4px 0"><b>${n} paradas · ${fd(f.end)} no total · ${(f.dist/1000).toFixed(1)} km</b> · fim ~${clock(f.end)}${f.est?" (estimativa, calculando rota real…)":""}</div><div class="mut">🏥 Saída ${clock(0)} · ${esc(ORIGIN.name)}</div>`;
+f.ss.forEach((s,i)=>{const p=pt(s.patient_id),a=f.arr[i];
+h+=`<div class="stop" draggable="true" ondragstart="dragS(event,'s','${s.id}')" ondragend="dragE()" ondragover="dragO(event,this)" ondragleave="dragL(this)" ondrop="dropOn(event,'${c.id}',${i})"><span class="grip" title="Segure e arraste">⠿</span><span class="num" style="background:${c.color}">${i+1}</span><div class="grow" style="cursor:grab" title="Segure e arraste para mover" onclick="mm.flyTo([${p.lat},${p.lng}],16)"><b>${esc(p.name)}</b><div class="mut">${esc(ad(p))}</div><div class="eta">chega ~${clock(a.at+i*(+$("svc").value||0)*60)} · ${fd(a.leg)} de viagem</div></div><button onclick="mv('${s.id}',-1)">↑</button><button onclick="mv('${s.id}',1)">↓</button><select onchange="mvTo('${s.id}',this.value)"><option value="">Mover…</option>${C.filter(x=>x.id!==c.id).map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join("")}</select><button onclick="rm('${s.id}')">✕</button><span class="wpp-soon" title="Enviar horário previsto ao paciente (em breve, integração BLZAPP)" aria-label="WhatsApp do paciente (em breve)"><svg viewBox="0 0 24 24" width="16" height="16" fill="#25D366" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg></span></div>`});
+h+="</div>"});
+h+=`<div class="card" ondragover="dragO(event,this)" ondragleave="dragL(this)" ondrop="dropFree(event)"><div class="row"><b class="grow">Pacientes sem coletador (${free.length})</b><button onclick="selAll()">Marcar todos</button><button onclick="sel.clear();renderFree()">Limpar</button></div><input id="fq" placeholder="Buscar paciente sem coletador…" value="${esc(FQ)}" oninput="FQ=this.value;renderFree()" style="margin:8px 0 4px"><div id="flist" style="max-height:340px;overflow-y:auto"></div>`;
+$("rotas").innerHTML=h+"</div>";renderFree();drawMap()}
+let FQ="";
+function freeList(){const used=new Set(T.map(s=>s.patient_id)),q=FQ.toLowerCase().trim();return P.filter(p=>!used.has(p.id)&&(!q||(p.name+" "+(p.address||"")+" "+(p.full_address||"")+" "+(p.phone||"")).toLowerCase().includes(q)))}
+function renderFree(){const el=$("flist");if(!el)return;const l=freeList();el.innerHTML=l.map(p=>`<div class="stop" draggable="true" ondragstart="dragS(event,'p','${p.id}')" ondragend="dragE()"><span class="grip" title="Segure e arraste para uma rota">⠿</span><input type="checkbox" ${sel.has(p.id)?"checked":""} onchange="this.checked?sel.add('${p.id}'):sel.delete('${p.id}')"><div class="grow"><b>${esc(p.name)}</b><div class="mut">${esc(ad(p))}</div></div><select onchange="assign('${p.id}',this.value)"><option value="">Atribuir a…</option>${C.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join("")}</select></div>`).join("")||'<p class="mut">Nenhum paciente encontrado.</p>'}
+function drawMap(){ml.clearLayers();const pts=[[ORIGIN.lat,ORIGIN.lng]],used=new Set(T.map(s=>s.patient_id));
+L.marker([ORIGIN.lat,ORIGIN.lng],{icon:L.divIcon({className:"",html:'<div class="pin" style="background:#222;width:32px;height:32px;font-size:16px">🏥</div>',iconSize:[32,32],iconAnchor:[16,16]}),zIndexOffset:900}).bindPopup(`<b>${esc(ORIGIN.name)}</b><br>${esc(ORIGIN.address)}`).addTo(ml);
+P.filter(p=>!used.has(p.id)).forEach(p=>{L.circleMarker([p.lat,p.lng],{radius:6,color:"#fff",weight:2,fillColor:"#9aa1ad",fillOpacity:1}).bindPopup(`<b>${esc(p.name)}</b><br>${esc(ad(p))}<br><i>sem coletador</i>`).addTo(ml);pts.push([p.lat,p.lng])});
+C.forEach(c=>{const f=info(c);if(!f.ps.length)return;const line=[ORIGIN,...f.ps,...($("ret").checked?[ORIGIN]:[])].map(p=>[p.lat,p.lng]);
+if($("real").checked)L.polyline(f.geo||line,{color:c.color,weight:4,opacity:.85}).addTo(ml);
+if($("line").checked)L.polyline(line,{color:c.color,weight:2,dashArray:"6 6",opacity:.8}).addTo(ml);
+f.ps.forEach((p,i)=>{L.marker([p.lat,p.lng],{icon:icon(c.color,i+1)}).bindPopup(`<b>${esc(p.name)}</b><br>${esc(ad(p))}<br>${esc(c.name)} · parada ${i+1}<br>chega ~${clock(f.arr[i].at+i*(+$("svc").value||0)*60)}`).addTo(ml);pts.push([p.lat,p.lng])})});
+if(fit&&pts.length>1){mm.fitBounds(pts,{padding:[40,40],maxZoom:16});fit=false}}
+function drawCars(){if(!gl)return;gl.clearLayers();POS.forEach(p=>{const c=C.find(x=>x.id===p.collector_id);if(!c)return;const old=Date.now()-new Date(p.updated_at)>180000;
+L.marker([p.lat,p.lng],{zIndexOffset:1000,icon:L.divIcon({className:"",html:`<div class="car" style="border-color:${c.color};opacity:${old?.5:1}">🚗</div>`,iconSize:[30,30],iconAnchor:[15,15]})}).bindPopup(`<b>${esc(c.name)}</b><br>atualizado ${ago(p.updated_at)}`).addTo(gl)})}
+function assign(pid,cid){if(cid)go(db.from("stops").insert({route_date:D,collector_id:cid,patient_id:pid,position:stopsOf(cid).length}))}
+function mv(id,d){const s=T.find(x=>x.id===id),arr=stopsOf(s.collector_id),i=arr.indexOf(s),j=i+d;if(j<0||j>=arr.length)return;
+[arr[i],arr[j]]=[arr[j],arr[i]];go(...arr.map((x,k)=>x.position!==k?db.from("stops").update({position:k}).eq("id",x.id):null).filter(Boolean))}
+function mvTo(id,cid){if(cid)go(db.from("stops").update({collector_id:cid,position:stopsOf(cid).length}).eq("id",id))}
+function rm(id){go(db.from("stops").delete().eq("id",id))}
+function optim(cid){const ss=stopsOf(cid).filter(s=>pt(s.patient_id)),o=tour(ss.map(s=>pt(s.patient_id)));
+go(...o.map((p,k)=>{const s=ss.find(x=>x.patient_id===p.id);return s.position!==k?db.from("stops").update({position:k}).eq("id",s.id):null}).filter(Boolean))}
+function selAll(){freeList().forEach(p=>sel.add(p.id));renderFree()}
+async function autoDist(){const redo=$("redo").checked,pool=new Set(sel);if(redo)T.forEach(s=>pool.add(s.patient_id));
+const ps=[...pool].map(pt).filter(Boolean),cs=C.filter(c=>!dun.has(c.id));if(!cs.length||!ps.length){alert("Marque os pacientes do dia (caixinhas) e ao menos um coletador.");return}
+const v=$("zs").value,g=split(ps,cs.length,v===""?null:+v,+$("svc").value||0),off=cs.map(c=>redo?0:stopsOf(c.id).length);
+let r=await db.from("stops").delete().eq("route_date",D).in("patient_id",[...pool]);if(r.error){alert(r.error.message);return}
+r=await db.from("stops").insert(g.flatMap((l,j)=>l.map((p,i)=>({route_date:D,collector_id:cs[j].id,patient_id:p.id,position:off[j]+i}))));
+if(r.error){alert(r.error.message);return}sel.clear();fit=true;load()}
+
+/* ---------- busca de endereço ---------- */
+const norm=q=>q.replace(/\bn[º°o.]?\s*(?=\d)/gi,"").replace(/\br\.?\s/gi,"Rua ").replace(/\bav\.?\s/gi,"Avenida ").replace(/\bpç\.?\s/gi,"Praça ").replace(/\s+/g," ").trim();
+async function suggest(q){q=norm(q);const full=/campina|\bpb\b/i.test(q)?q:q+", Campina Grande, PB",out=[];
+const add=(a,b,l)=>{if(isFinite(a)&&isFinite(b)&&!out.some(o=>Math.abs(o.lat-a)<2e-4&&Math.abs(o.lng-b)<2e-4))out.push({lat:+a,lng:+b,label:l})};
+if(GOOGLE_KEY){try{const j=await(await fetch("https://maps.googleapis.com/maps/api/geocode/json?address="+encodeURIComponent(full)+"&components=country:BR&region=br&language=pt-BR&bounds=-7.5,-36.2|-7.0,-35.6&key="+GOOGLE_KEY)).json();(j.results||[]).slice(0,5).forEach(r=>add(r.geometry.location.lat,r.geometry.location.lng,r.formatted_address))}catch(e){}}
+try{const j=await(await fetch("https://photon.komoot.io/api/?limit=5&lat=-7.23&lon=-35.88&q="+encodeURIComponent(full))).json();
+(j.features||[]).filter(f=>f.properties.countrycode==="BR").forEach(f=>{const p=f.properties;add(f.geometry.coordinates[1],f.geometry.coordinates[0],[p.street||p.name,p.housenumber,p.district,p.city,p.state].filter(Boolean).join(", "))})}catch(e){}
+if(out.length<3){for(const s of[full,q]){try{const j=await(await fetch("https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&countrycodes=br&viewbox=-36.2,-7.0,-35.6,-7.5&q="+encodeURIComponent(s))).json();j.forEach(r=>add(r.lat,r.lon,r.display_name))}catch(e){}}}
+return out}
+function parseLL(s){const m=s.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/)||s.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/)||s.match(/(-?\d+\.\d+)\s*[,;]\s*(-?\d+\.\d+)/);return m?[+m[1],+m[2]]:null}
+async function geo(){const a=$("pa").value.trim();if(!a)return;$("gmsg").textContent="Buscando…";$("sug").innerHTML="";SUG=await suggest(a);
+if(!SUG.length){$("gmsg").textContent="Não encontrei. Tente só rua + cidade, ou cole as coordenadas do Google Maps abaixo.";return}
+pick(0);$("gmsg").textContent=SUG.length>1?"Confira o pino. Outras opções:":"Confira o pino.";
+$("sug").innerHTML=SUG.length>1?SUG.map((s,i)=>`<button style="display:block;text-align:left;width:100%;margin-bottom:4px" onclick="pick(${i})">${esc(s.label)}</button>`).join(""):""}
+function pick(i){setPin(SUG[i].lat,SUG[i].lng,true)}
+function pasteLL(){const m=parseLL($("pc").value);if(!m){$("gmsg").textContent="Não entendi. Cole coordenadas (ex.: -7.23, -35.88) ou o link completo do Google Maps (não o link curto).";return}setPin(m[0],m[1],true);$("gmsg").textContent="Local marcado pelas coordenadas."}
+
+/* ---------- pacientes ---------- */
+function showPin(){$("pcoord").textContent=pin?"Local marcado: "+pin[0].toFixed(6)+", "+pin[1].toFixed(6):"Sem local marcado."}
+function setPin(a,b,zoom){pin=[a,b];if(!fmk){fmk=L.marker([a,b],{draggable:true,icon:icon("#c0392b","•")}).addTo(fm);fmk.on("dragend",()=>{const q=fmk.getLatLng();pin=[q.lat,q.lng];showPin()})}else fmk.setLatLng([a,b]);if(zoom)fm.setView([a,b],17);showPin()}
+async function savePat(){const n=$("pn").value.trim();if(!n){alert("Informe o nome.");return}
+const dx=dupFind(n).exact;if(dx.length&&!confirm("Já existe paciente com este nome: "+dx.map(p=>p.name+(ad(p)?" — "+ad(p):"")).join("; ")+"\n\nCadastrar mesmo assim?"))return;if(!pin){alert("Marque o local no mapa.");return}
+const o={name:n,phone:$("pt").value.trim(),address:$("pa").value.trim(),full_address:$("pf").value.trim(),lat:pin[0],lng:pin[1]};
+const{error}=editId?await db.from("patients").update(o).eq("id",editId):await db.from("patients").insert(o);
+if(error){alert(error.message);return}clearForm();load()}
+function clearForm(){editId=null;$("dup").innerHTML="";pin=null;["pn","pt","pa","pc","pf"].forEach(i=>$(i).value="");$("ftit").textContent="Novo paciente";$("gmsg").textContent="";$("sug").innerHTML="";if(fmk){fm.removeLayer(fmk);fmk=null}showPin()}
+function editPat(id){const p=pt(id);editId=id;$("pn").value=p.name;$("pt").value=p.phone||"";$("pa").value=p.address||"";$("pf").value=p.full_address||"";$("ftit").textContent="Editar paciente";dupCheck();setPin(p.lat,p.lng,true);window.scrollTo(0,0)}
+function delPat(id){if(confirm("Excluir este paciente (e suas paradas)?"))go(db.from("patients").delete().eq("id",id))}
+function renderPat(){const q=$("q").value.toLowerCase();
+$("plist").innerHTML=P.filter(p=>(p.name+" "+(p.address||"")+" "+(p.full_address||"")).toLowerCase().includes(q)).map(p=>`<div class="card row"><div class="grow"><b>${esc(p.name)}</b><div class="mut">${esc(ad(p))} ${esc(p.phone)}</div></div><button onclick="editPat('${p.id}')">Editar</button><button onclick="delPat('${p.id}')">✕</button></div>`).join("")||'<p class="mut">Nenhum paciente.</p>'}
+
+/* ---------- coletadores e GPS ---------- */
+function addCol(){const n=$("cn").value.trim();if(!n)return;const o={name:n,color:COLORS[C.length%COLORS.length]},ph=$("cp").value.trim();if(ph)o.phone=ph;$("cn").value="";$("cp").value="";go(db.from("collectors").insert(o))}
+function renPhone(id,v){go(db.from("collectors").update({phone:v.trim()}).eq("id",id))}
+function renCol(id,v){if(v.trim())go(db.from("collectors").update({name:v.trim()}).eq("id",id))}
+function delCol(id){if(confirm("Remover coletador e as paradas dele?"))go(db.from("collectors").delete().eq("id",id))}
+function renderCol(){$("clist").innerHTML=C.map(c=>`<div class="card row"><span class="dot" style="background:${c.color}"></span><input class="grow" style="margin:0" value="${esc(c.name)}" onchange="renCol('${c.id}',this.value)"><input style="margin:0;max-width:190px" placeholder="Telefone (WhatsApp)" value="${esc(c.phone||"")}" onchange="renPhone('${c.id}',this.value)"><button onclick="delCol('${c.id}')">✕</button></div>`).join("")}
+function renderGps(){const s=$("gpsc"),cur=s.value;if(s.options.length!==C.length){s.innerHTML=C.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("");if(cur)s.value=cur}
+$("gpsname").textContent=C.length===1?C[0].name:"";s.style.display=C.length===1?"none":"";$("gpsauto").checked=LS.g("gpsauto","0")==="1";
+if(ROLE==="collector"&&!AUTOT&&C.length&&s.value&&LS.g("gpsauto","0")==="1"){AUTOT=true;gpsStart()}
+$("gpslist").innerHTML=POS.map(p=>{const c=C.find(x=>x.id===p.collector_id);return c?`<div class="stop"><span class="dot" style="background:${c.color}"></span><b class="grow">${esc(c.name)}</b><span class="mut">${ago(p.updated_at)}</span></div>`:""}).join("")||'<p class="mut">Nenhuma posição recebida ainda.</p>'}
+function gpsStart(){const cid=$("gpsc").value;if(!cid){alert("Cadastre e escolha um coletador.");return}if(!navigator.geolocation){alert("Este aparelho não permite GPS no navegador.");return}gpsStop();
+gpsW=navigator.geolocation.watchPosition(async pos=>{const n=Date.now();if(n-gpsT<8000)return;gpsT=n;
+const{error}=await db.from("positions").upsert({collector_id:cid,lat:pos.coords.latitude,lng:pos.coords.longitude,accuracy:pos.coords.accuracy,updated_at:new Date().toISOString()});
+$("gpsmsg").textContent=error?error.message:"Enviando localização · última às "+new Date().toLocaleTimeString("pt-BR")},
+e=>{$("gpsmsg").textContent="Erro de GPS: "+e.message},{enableHighAccuracy:true,maximumAge:5000});
+wake();LS.s("gpsOn","1");$("gpsmsg").textContent="Iniciando… permita o acesso à localização."}
+function gpsStop(){try{WL&&WL.release&&WL.release().catch(()=>{})}catch(e){}WL=null;LS.s("gpsOn","0");if(gpsW!=null){navigator.geolocation.clearWatch(gpsW);gpsW=null;$("gpsmsg").textContent="Compartilhamento parado."}}
+/* ---------- sede (configuração) ---------- */
+let sm,smk,SOS=[],opin=null;
+async function loadOrigin(){let v=null;try{const r=await db.from("settings").select("value").eq("key","origin").maybeSingle();if(r.data)v=r.data.value;else v=JSON.parse(LS.g("origin","null"))}catch(e){}
+if(v&&isFinite(v.lat)&&isFinite(v.lng))Object.assign(ORIGIN,v)}
+function initCfg(){if(!sm){sm=L.map("smap").setView([ORIGIN.lat,ORIGIN.lng],15);tiles(sm);sm.on("click",e=>setO(e.latlng.lat,e.latlng.lng))}
+$("on").value=ORIGIN.name;$("oa").value=ORIGIN.address;$("omsg").textContent="";$("osug").innerHTML="";setO(ORIGIN.lat,ORIGIN.lng,true);setTimeout(()=>sm.invalidateSize(),50)}
+function setO(a,b,zoom){opin=[a,b];if(!smk){smk=L.marker([a,b],{draggable:true,icon:L.divIcon({className:"",html:'<div class="pin" style="background:#222;width:32px;height:32px;font-size:16px">🏥</div>',iconSize:[32,32],iconAnchor:[16,16]})}).addTo(sm);smk.on("dragend",()=>{const q=smk.getLatLng();opin=[q.lat,q.lng];$("ocoord").textContent="Local marcado: "+opin[0].toFixed(6)+", "+opin[1].toFixed(6)})}else smk.setLatLng([a,b]);
+if(zoom)sm.setView([a,b],17);$("ocoord").textContent="Local marcado: "+a.toFixed(6)+", "+b.toFixed(6)}
+async function ogeo(){const a=$("oa").value.trim();if(!a)return;$("omsg").textContent="Buscando…";$("osug").innerHTML="";SOS=await suggest(a);
+if(!SOS.length){$("omsg").textContent="Não encontrei. Cole as coordenadas do Google Maps abaixo ou clique no mapa.";return}
+setO(SOS[0].lat,SOS[0].lng,true);$("omsg").textContent=SOS.length>1?"Confira o pino. Outras opções:":"Confira o pino.";
+$("osug").innerHTML=SOS.length>1?SOS.map((x,i)=>`<button style="display:block;text-align:left;width:100%;margin-bottom:4px" onclick="setO(SOS[${i}].lat,SOS[${i}].lng,true)">${esc(x.label)}</button>`).join(""):""}
+function opaste(){const m=parseLL($("oc").value);if(!m){$("omsg").textContent="Não entendi. Cole coordenadas (ex.: -7.23, -35.88) ou o link completo do Google Maps.";return}setO(m[0],m[1],true);$("omsg").textContent="Local marcado pelas coordenadas."}
+async function saveOrigin(){if(!opin){alert("Marque o local no mapa.");return}
+const v={name:$("on").value.trim()||"Sede",address:$("oa").value.trim(),lat:opin[0],lng:opin[1]};
+const{error}=await db.from("settings").upsert({key:"origin",value:v});
+if(error){LS.s("origin",JSON.stringify(v));alert("Não consegui salvar no banco ("+error.message+"). Salvei só neste aparelho. Rode o SQL da tabela settings para compartilhar com a equipe.")}
+Object.assign(ORIGIN,v);fit=true;render();$("omsg").textContent="Sede salva."}
+/* ---------- impressão ---------- */
+const pun=new Set();let PM=[];
+const HO=[["data","Data"],["n","Nº de paradas"],["tempo","Tempo total"],["km","Distância"],["saida","Horário de saída"],["fim","Fim previsto"],["zona","Zona"]];
+let ho={data:true,n:true,tempo:true,km:true,saida:true,fim:true,zona:true};try{Object.assign(ho,JSON.parse(LS.g("ho","{}")))}catch(e){}
+function renderPrintOpts(){$("phead").innerHTML="<b>Cabeçalho:</b> "+HO.map(([k,l])=>`<label><input type="checkbox" ${ho[k]?"checked":""} onchange="ho['${k}']=this.checked;LS.s('ho',JSON.stringify(ho))"> ${l}</label>`).join("");$("pcols").innerHTML=C.map(c=>`<label><input type="checkbox" ${pun.has(c.id)?"":"checked"} onchange="this.checked?pun.delete('${c.id}'):pun.add('${c.id}')"> <span class="dot" style="background:${c.color}"></span> ${esc(c.name)}</label>`).join("")||'<span class="mut">Cadastre coletadores.</span>'}
+function printCleanup(){PM.forEach(m=>{try{m.remove()}catch(e){}});PM=[];$("printArea").innerHTML=""}
+window.addEventListener("afterprint",printCleanup);
+async function printRoutes(ids){ids=ids||C.filter(c=>!pun.has(c.id)).map(c=>c.id);if(!ids.length){alert("Marque ao menos um coletador.");return}
+const withMap=$("pmap").checked,svc=(+$("svc").value||0)*60,dt=D.split("-").reverse().join("/"),cs=ids.map(id=>C.find(c=>c.id===id)).filter(Boolean);
+printCleanup();const iv=Math.max(0,+$("pint").value||0);LS.s("pint",String(iv));let h="";
+cs.forEach((c,k)=>{const f=info(c),n=f.ps.length,z=n?zone(f.ps):"";
+const est=f.est&&(ho.tempo||ho.fim)?" (estimativa)":"",parts=[];
+if(ho.n)parts.push(n+" paradas");if(ho.tempo)parts.push(fd(f.end)+" no total");if(ho.km)parts.push((f.dist/1000).toFixed(1)+" km");if(ho.saida)parts.push("saída "+clock(0));if(ho.fim)parts.push("fim previsto ~"+clock(f.end));if(ho.zona&&z)parts.push("Zona: "+esc(z));
+h+=`<section class="ps"><h2 style="margin:0 0 4px">🩸 ${esc(c.name)}${ho.data?" — "+dt:""}</h2>`+(n?(parts.length?`<div style="margin-bottom:8px">${parts.join(" · ")}${est}</div>`:""):`<div style="margin-bottom:8px">Sem paradas nesta data.</div>`);
+if(n){h+=`<table class="pt"><tr><th></th><th>Nº</th><th>Chegada</th><th>Paciente</th><th>Telefone</th><th>Endereço</th></tr><tr><td></td><td>🏥</td><td>${clock(0)}</td><td colspan="3"><b>Saída:</b> ${esc(ORIGIN.name)} — ${esc(ORIGIN.address)}</td></tr>`;
+f.ps.forEach((p,i)=>{h+=`<tr><td>☐</td><td>${i+1}</td><td style="white-space:nowrap">${clock(f.arr[i].at+i*svc)}${iv>0?" - "+clock(f.arr[i].at+i*svc+iv*60):""}</td><td>${esc(p.name)}</td><td>${esc(p.phone)}</td><td>${esc(ad(p))}</td></tr>`});
+if($("ret").checked)h+=`<tr><td></td><td>🏥</td><td>${clock(f.end)}</td><td colspan="3">Retorno à sede</td></tr>`;
+h+="</table>"}
+if(withMap&&n)h+=`<div class="pm" id="pm${k}"></div>`;
+h+="</section>"});
+$("printArea").innerHTML=h;const waits=[];
+cs.forEach((c,k)=>{const el=$("pm"+k);if(!el)return;const f=info(c);
+const m=L.map(el,{zoomControl:false,fadeAnimation:false,zoomAnimation:false,markerZoomAnimation:false});PM.push(m);
+const t=tiles(m);waits.push(new Promise(r=>{t.once("load",r);setTimeout(r,7000)}));
+const line=[ORIGIN,...f.ps,...($("ret").checked?[ORIGIN]:[])].map(p=>[p.lat,p.lng]),pl=L.polyline(f.geo||line,{color:c.color,weight:4,opacity:.9}).addTo(m);
+L.marker([ORIGIN.lat,ORIGIN.lng],{icon:L.divIcon({className:"",html:'<div class="pin" style="background:#222;width:32px;height:32px;font-size:16px">🏥</div>',iconSize:[32,32],iconAnchor:[16,16]})}).addTo(m);
+f.ps.forEach((p,i)=>L.marker([p.lat,p.lng],{icon:icon(c.color,i+1)}).addTo(m));
+m.fitBounds(pl.getBounds(),{padding:[30,30],animate:false})});
+await Promise.all(waits);await new Promise(r=>setTimeout(r,400));window.print()}
+/* ---------- visão do coletador ---------- */
+function setD(v){if(typeof v==="number"){const d=new Date();d.setDate(d.getDate()+v);v=d.toLocaleDateString("sv-SE")}if(!v)return;D=v;$("dt").value=v;$("dt2").value=v;fit=true;load()}
+function renderMe(){const c=C[0];if(!c){$("me").innerHTML='<div class="card mut">Seu usuário ainda não está ligado a um coletador. Fale com a central.</div>';return}
+const ss=stopsOf(c.id).filter(s=>pt(s.patient_id));
+let h=`<div class="card"><div class="row"><span class="dot" style="background:${c.color}"></span><b class="grow">${esc(c.name)} <span class="mut">· ${ss.length} paradas</span></b>${ss.length?`<a class="btn" target="_blank" rel="noopener" href="${dirUrl(c)}">Rota completa no Google Maps</a>`:""}</div>`;
+if(!ss.length)h+='<p class="mut">Nenhuma parada para esta data.</p>';
+ss.forEach((s,i)=>{const p=pt(s.patient_id);h+=`<div class="stop"><span class="num" style="background:${c.color}">${i+1}</span><div class="grow"><b>${esc(p.name)}</b><div class="mut">${esc(ad(p))}</div>${p.phone?`<div class="mut">📞 <a href="tel:${esc(p.phone)}">${esc(p.phone)}</a></div>`:""}</div><a class="btn" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&travelmode=driving&destination=${p.lat},${p.lng}">Ir</a></div>`});
+$("me").innerHTML=h+"</div>"}
+/* ---------- distribuição: coletadores do dia / WhatsApp ---------- */
+const dun=new Set();
+function renderDistOpts(){$("dcols").innerHTML=C.map(c=>`<label><input type="checkbox" ${dun.has(c.id)?"":"checked"} onchange="this.checked?dun.delete('${c.id}'):dun.add('${c.id}')"> <span class="dot" style="background:${c.color}"></span> ${esc(c.name)}</label>`).join("")||'<span class="mut">Cadastre coletadores.</span>'}
+function sendWpp(cid){const c=C.find(x=>x.id===cid);if(!c)return;const f=info(c),n=f.ps.length;if(!n){alert("Este coletador não tem paradas nesta data.");return}
+const svc=(+$("svc").value||0)*60,dt=D.split("-").reverse().join("/");
+let m=`*Rota de ${c.name} — ${dt}*\nSaída ${clock(0)} · ${ORIGIN.name}\n${n} paradas · ${fd(f.end)} · ${(f.dist/1000).toFixed(1)} km · fim previsto ~${clock(f.end)}${f.est?" (estimativa)":""}\n`;
+f.ps.forEach((p,i)=>{m+=`\n*${i+1}) ${p.name}* — ${clock(f.arr[i].at+i*svc)}\n📍 ${ad(p)}\n`+(p.phone?`📞 ${p.phone}\n`:"")});
+m+=`\n🗺️ Rota completa no Google Maps:\n${dirUrl(c)}`;
+let ph=(c.phone||"").replace(/\D/g,"").replace(/^0+/,"");if(ph&&ph.length<=11)ph="55"+ph;
+if(!ph&&!confirm("Este coletador não tem telefone cadastrado. Abrir o WhatsApp para escolher o contato?"))return;
+window.open("https://wa.me/"+ph+"?text="+encodeURIComponent(m),"_blank","noopener")}
+/* ---------- duplicidade de nome ---------- */
+const nn=t=>String(t||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/\s+/g," ").trim();
+function dupFind(v){const q=nn(v);if(q.length<3)return{exact:[],similar:[]};const ex=[],sim=[];
+P.forEach(p=>{if(p.id===editId)return;const x=nn(p.name);if(x===q)ex.push(p);else if(x.includes(q)||q.includes(x)||(q.length>=5&&q.split(" ")[0]===x.split(" ")[0]&&q.split(" ").slice(-1)[0]===x.split(" ").slice(-1)[0]))sim.push(p)});
+return{exact:ex,similar:sim.slice(0,5)}}
+function dupCheck(){const r=dupFind($("pn").value),el=$("dup"),it=p=>`<div class="row"><span class="grow"><b>${esc(p.name)}</b> <span class="mut">${esc(ad(p))} ${esc(p.phone||"")}</span></span><button onclick="editPat('${p.id}')">Abrir cadastro</button></div>`;
+if(r.exact.length)el.innerHTML=`<div class="dupbox bad">⚠ <b>Já cadastrado!</b> Existe paciente com este nome:${r.exact.map(it).join("")}</div>`;
+else if(r.similar.length)el.innerHTML=`<div class="dupbox warn">Nomes parecidos já cadastrados (confira se não é a mesma pessoa):${r.similar.map(it).join("")}</div>`;
+else el.innerHTML=""}
+/* ---------- arrastar e soltar ---------- */
+let DR=null;
+function dragS(e,k,id){DR={k,id};e.dataTransfer.effectAllowed="move";try{e.dataTransfer.setData("text/plain",id)}catch(x){}const el=e.currentTarget;setTimeout(()=>el.classList.add("dragging"),0)}
+function dragE(){DR=null;document.querySelectorAll(".dragging,.dt,.db,.dropcard").forEach(x=>x.classList.remove("dragging","dt","db","dropcard"))}
+function dragO(e,el){if(!DR)return;e.preventDefault();e.stopPropagation();e.dataTransfer.dropEffect="move";
+document.querySelectorAll(".dt,.db,.dropcard").forEach(x=>{if(x!==el)x.classList.remove("dt","db","dropcard")});
+if(el.classList.contains("stop")){const r=el.getBoundingClientRect(),down=e.clientY>r.top+r.height/2;el.classList.toggle("dt",!down);el.classList.toggle("db",down)}else el.classList.add("dropcard")}
+function dragL(el){el.classList.remove("dt","db","dropcard")}
+function dropOn(e,cid,i){if(!DR)return;e.preventDefault();e.stopPropagation();let idx=i;
+if(i>=0){const r=e.currentTarget.getBoundingClientRect();if(e.clientY>r.top+r.height/2)idx=i+1}
+const d=DR;dragE();dropAt(d.k,d.id,cid,idx)}
+function dropFree(e){if(!DR)return;e.preventDefault();e.stopPropagation();const d=DR;dragE();if(d.k==="s")rm(d.id)}
+function dropAt(k,id,cid,idx){const q=[];
+if(k==="s"){const s=T.find(x=>x.id===id);if(!s)return;const src=s.collector_id,orig=stopsOf(cid);
+if(idx<0)idx=orig.length;const oi=orig.findIndex(x=>x.id===id);if(oi>=0&&oi<idx)idx--;
+const arr=orig.filter(x=>x.id!==id);arr.splice(Math.min(idx,arr.length),0,s);
+arr.forEach((x,j)=>{if(x.position!==j||x.collector_id!==cid){x.position=j;x.collector_id=cid;q.push(db.from("stops").update({collector_id:cid,position:j}).eq("id",x.id))}});
+if(src!==cid)stopsOf(src).forEach((x,j)=>{if(x.position!==j){x.position=j;q.push(db.from("stops").update({position:j}).eq("id",x.id))}})}
+else{const arr=stopsOf(cid);if(idx<0||idx>arr.length)idx=arr.length;
+arr.forEach((x,j)=>{if(j>=idx)q.push(db.from("stops").update({position:j+1}).eq("id",x.id))});
+q.push(db.from("stops").insert({route_date:D,collector_id:cid,patient_id:id,position:idx}))}
+if(!q.length){render();return}render();go(...q)}
+/* ---------- app no celular (PWA) ---------- */
+let DIP=null,WL=null,AUTOT=false;
+async function wake(){try{if(navigator.wakeLock&&document.visibilityState==="visible")WL=await navigator.wakeLock.request("screen")}catch(e){}}
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&gpsW!=null)wake()});
+addEventListener("beforeinstallprompt",e=>{e.preventDefault();DIP=e;const b=$("inst");if(b)b.classList.remove("hide")});
+addEventListener("appinstalled",()=>{DIP=null;const b=$("inst");if(b)b.classList.add("hide")});
+async function installApp(){if(!DIP)return;DIP.prompt();try{await DIP.userChoice}catch(e){}DIP=null;$("inst").classList.add("hide")}
+if(/iphone|ipad|ipod/i.test(navigator.userAgent)&&!navigator.standalone&&LS.g("ioshint","1")!=="0")$("ioshint").classList.remove("hide");
+if("serviceWorker" in navigator)addEventListener("load",()=>{navigator.serviceWorker.register("sw.js").catch(()=>{})});
+/* ---------- modo escuro ---------- */
+function isDark(){const t=document.documentElement.getAttribute("data-theme");return t?t==="dark":matchMedia("(prefers-color-scheme: dark)").matches}
+function themeBtns(){const d=isDark();document.querySelectorAll(".thm").forEach(b=>{b.textContent=d?"☀️":"🌙";b.title=d?"Mudar para modo claro":"Mudar para modo escuro"})}
+function toggleTheme(){const n=isDark()?"light":"dark";document.documentElement.setAttribute("data-theme",n);LS.s("theme",n);themeBtns()}
+try{matchMedia("(prefers-color-scheme: dark)").addEventListener("change",themeBtns)}catch(e){}
+themeBtns();
+boot();
+</script></body></html>
