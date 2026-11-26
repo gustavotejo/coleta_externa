@@ -26,7 +26,7 @@ input.s{width:auto;margin:0}label{font-size:13px;color:var(--mut)}
 #mapa{height:calc(100vh - 120px);min-height:380px;border-radius:8px;position:sticky;top:8px}#fmap{height:300px;border-radius:8px;margin-bottom:8px}
 .pin{width:26px;height:26px;border-radius:50%;color:#fff;font:700 12px system-ui;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 1px 4px #0006}
 .car{width:30px;height:30px;border-radius:50%;background:#fff;border:3px solid;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 1px 4px #0006}
-.wpp-soon{opacity:.35;cursor:default;display:inline-flex;align-items:center;margin-left:auto;padding:0 2px;flex:none}.eta{font-size:12px;color:var(--ac);font-weight:600}
+.wpp-soon{opacity:.35;cursor:default;display:inline-flex;align-items:center;margin-left:auto;padding:0 2px;flex:none}.dupbox{border-radius:8px;padding:8px 10px;margin:-2px 0 8px;font-size:13px}.dupbox.bad{background:#c0392b22;border:1px solid #c0392b}.dupbox.warn{background:#b9770e22;border:1px solid #b9770e}.dupbox .row{margin-top:4px}.eta{font-size:12px;color:var(--ac);font-weight:600}
 #printArea{position:absolute;left:-10000px;top:0;width:680px;background:#fff;color:#000;font:13px/1.35 system-ui,Arial,sans-serif}
 #printArea *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .pt{width:100%;border-collapse:collapse;font-size:12px}.pt th,.pt td{border:1px solid #888;padding:4px 6px;text-align:left;vertical-align:top}.pt th{background:#eee}
@@ -58,7 +58,7 @@ input.s{width:auto;margin:0}label{font-size:13px;color:var(--mut)}
 <div class="row"><label><input type="checkbox" id="pmap" onchange="LS.s('pmap',this.checked?'1':'0')"> incluir mapa com a rota e as marcações</label><button class="pri" onclick="printRoutes()"><svg viewBox="0 0 24 24" width="16" height="16" fill="#fff" style="vertical-align:-3px;margin-right:4px" aria-hidden="true"><path d="M19 8H5a3 3 0 0 0-3 3v6h4v4h12v-4h4v-6a3 3 0 0 0-3-3zM16 19H8v-5h8v5zm3-7a1 1 0 1 1 0-2 1 1 0 0 1 0 2zM18 3H6v4h12V3z"/></svg>Imprimir selecionados</button></div></div>
 <div id="rotas"></div></div><div id="mapa"></div></div></section>
 <section id="v-pac" class="hide"><div class="grid"><div class="card"><b id="ftit">Novo paciente</b><br>
-<label>Nome</label><input id="pn"><label>Telefone</label><input id="pt"><label>Endereço completo (aparece nas rotas e no WhatsApp)</label><input id="pf" placeholder="Rua, nº, bairro, complemento, ponto de referência"><label>Endereço para localizar no mapa (pode escrever do seu jeito)</label><input id="pa" placeholder="ex.: rua maciel pinheiro 200 centro" onkeydown="if(event.key==='Enter')geo()">
+<label>Nome</label><input id="pn" autocomplete="off" oninput="dupCheck()"><div id="dup"></div><label>Telefone</label><input id="pt"><label>Endereço completo (aparece nas rotas e no WhatsApp)</label><input id="pf" placeholder="Rua, nº, bairro, complemento, ponto de referência"><label>Endereço para localizar no mapa (pode escrever do seu jeito)</label><input id="pa" placeholder="ex.: rua maciel pinheiro 200 centro" onkeydown="if(event.key==='Enter')geo()">
 <div class="row"><button onclick="geo()">Buscar endereço</button><span id="gmsg" class="mut"></span></div><div id="sug" style="margin-top:6px"></div>
 <label>Ou cole as coordenadas / link do Google Maps</label><div class="row"><input id="pc" class="grow" style="margin:0" placeholder="-7.2306, -35.8811"><button onclick="pasteLL()">Usar</button></div>
 <p class="mut">Confira o pino: clique no mapa ou arraste-o até o local exato.</p>
@@ -237,12 +237,13 @@ function pasteLL(){const m=parseLL($("pc").value);if(!m){$("gmsg").textContent="
 /* ---------- pacientes ---------- */
 function showPin(){$("pcoord").textContent=pin?"Local marcado: "+pin[0].toFixed(6)+", "+pin[1].toFixed(6):"Sem local marcado."}
 function setPin(a,b,zoom){pin=[a,b];if(!fmk){fmk=L.marker([a,b],{draggable:true,icon:icon("#c0392b","•")}).addTo(fm);fmk.on("dragend",()=>{const q=fmk.getLatLng();pin=[q.lat,q.lng];showPin()})}else fmk.setLatLng([a,b]);if(zoom)fm.setView([a,b],17);showPin()}
-async function savePat(){const n=$("pn").value.trim();if(!n){alert("Informe o nome.");return}if(!pin){alert("Marque o local no mapa.");return}
+async function savePat(){const n=$("pn").value.trim();if(!n){alert("Informe o nome.");return}
+const dx=dupFind(n).exact;if(dx.length&&!confirm("Já existe paciente com este nome: "+dx.map(p=>p.name+(ad(p)?" — "+ad(p):"")).join("; ")+"\n\nCadastrar mesmo assim?"))return;if(!pin){alert("Marque o local no mapa.");return}
 const o={name:n,phone:$("pt").value.trim(),address:$("pa").value.trim(),full_address:$("pf").value.trim(),lat:pin[0],lng:pin[1]};
 const{error}=editId?await db.from("patients").update(o).eq("id",editId):await db.from("patients").insert(o);
 if(error){alert(error.message);return}clearForm();load()}
-function clearForm(){editId=null;pin=null;["pn","pt","pa","pc","pf"].forEach(i=>$(i).value="");$("ftit").textContent="Novo paciente";$("gmsg").textContent="";$("sug").innerHTML="";if(fmk){fm.removeLayer(fmk);fmk=null}showPin()}
-function editPat(id){const p=pt(id);editId=id;$("pn").value=p.name;$("pt").value=p.phone||"";$("pa").value=p.address||"";$("pf").value=p.full_address||"";$("ftit").textContent="Editar paciente";setPin(p.lat,p.lng,true);window.scrollTo(0,0)}
+function clearForm(){editId=null;$("dup").innerHTML="";pin=null;["pn","pt","pa","pc","pf"].forEach(i=>$(i).value="");$("ftit").textContent="Novo paciente";$("gmsg").textContent="";$("sug").innerHTML="";if(fmk){fm.removeLayer(fmk);fmk=null}showPin()}
+function editPat(id){const p=pt(id);editId=id;$("pn").value=p.name;$("pt").value=p.phone||"";$("pa").value=p.address||"";$("pf").value=p.full_address||"";$("ftit").textContent="Editar paciente";dupCheck();setPin(p.lat,p.lng,true);window.scrollTo(0,0)}
 function delPat(id){if(confirm("Excluir este paciente (e suas paradas)?"))go(db.from("patients").delete().eq("id",id))}
 function renderPat(){const q=$("q").value.toLowerCase();
 $("plist").innerHTML=P.filter(p=>(p.name+" "+(p.address||"")+" "+(p.full_address||"")).toLowerCase().includes(q)).map(p=>`<div class="card row"><div class="grow"><b>${esc(p.name)}</b><div class="mut">${esc(ad(p))} ${esc(p.phone)}</div></div><button onclick="editPat('${p.id}')">Editar</button><button onclick="delPat('${p.id}')">✕</button></div>`).join("")||'<p class="mut">Nenhum paciente.</p>'}
@@ -328,5 +329,14 @@ m+=`\n🗺️ Rota completa no Google Maps:\n${dirUrl(c)}`;
 let ph=(c.phone||"").replace(/\D/g,"").replace(/^0+/,"");if(ph&&ph.length<=11)ph="55"+ph;
 if(!ph&&!confirm("Este coletador não tem telefone cadastrado. Abrir o WhatsApp para escolher o contato?"))return;
 window.open("https://wa.me/"+ph+"?text="+encodeURIComponent(m),"_blank","noopener")}
+/* ---------- duplicidade de nome ---------- */
+const nn=t=>String(t||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/\s+/g," ").trim();
+function dupFind(v){const q=nn(v);if(q.length<3)return{exact:[],similar:[]};const ex=[],sim=[];
+P.forEach(p=>{if(p.id===editId)return;const x=nn(p.name);if(x===q)ex.push(p);else if(x.includes(q)||q.includes(x)||(q.length>=5&&q.split(" ")[0]===x.split(" ")[0]&&q.split(" ").slice(-1)[0]===x.split(" ").slice(-1)[0]))sim.push(p)});
+return{exact:ex,similar:sim.slice(0,5)}}
+function dupCheck(){const r=dupFind($("pn").value),el=$("dup"),it=p=>`<div class="row"><span class="grow"><b>${esc(p.name)}</b> <span class="mut">${esc(ad(p))} ${esc(p.phone||"")}</span></span><button onclick="editPat('${p.id}')">Abrir cadastro</button></div>`;
+if(r.exact.length)el.innerHTML=`<div class="dupbox bad">⚠ <b>Já cadastrado!</b> Existe paciente com este nome:${r.exact.map(it).join("")}</div>`;
+else if(r.similar.length)el.innerHTML=`<div class="dupbox warn">Nomes parecidos já cadastrados (confira se não é a mesma pessoa):${r.similar.map(it).join("")}</div>`;
+else el.innerHTML=""}
 boot();
 </script></body></html>
