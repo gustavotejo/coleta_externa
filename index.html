@@ -54,7 +54,7 @@ input.s{width:auto;margin:0}label{font-size:13px;color:var(--mut)}
 <div class="row" style="margin:6px 0"><label><input type="checkbox" id="redo" checked> permitir trocar pacientes entre coletadores (inclui os já atribuídos do dia)</label></div>
 <button class="pri" onclick="autoDist()">Distribuir os pacientes marcados</button>
 <p class="mut" style="margin:6px 0 0">Escolha os coletadores que vão sair e marque abaixo os pacientes do dia. Com a troca entre coletadores ligada, quem não for marcado fica sem paradas e os pacientes dele são redistribuídos. O sistema divide por região, depois testa mover e trocar pacientes entre coletadores para reduzir o tempo total e equilibrar as rotas, e ordena cada rota pelo caminho mais curto.</p></div>
-<div class="card"><b>Imprimir rotas</b><div id="pcols" class="row" style="margin:6px 0"></div><div id="phead" class="row mut" style="margin:6px 0"></div>
+<div class="card"><b>Imprimir rotas</b><div id="pcols" class="row" style="margin:6px 0"></div><div id="phead" class="row mut" style="margin:6px 0"></div><div class="row" style="margin:6px 0"><label>Intervalo de chegada na impressão (min)</label><input type="number" id="pint" class="s" style="width:70px" min="0" max="240" onchange="LS.s('pint',this.value)"><span class="mut">0 = só o horário previsto</span></div>
 <div class="row"><label><input type="checkbox" id="pmap" onchange="LS.s('pmap',this.checked?'1':'0')"> incluir mapa com a rota e as marcações</label><button class="pri" onclick="printRoutes()"><svg viewBox="0 0 24 24" width="16" height="16" fill="#fff" style="vertical-align:-3px;margin-right:4px" aria-hidden="true"><path d="M19 8H5a3 3 0 0 0-3 3v6h4v4h12v-4h4v-6a3 3 0 0 0-3-3zM16 19H8v-5h8v5zm3-7a1 1 0 1 1 0-2 1 1 0 0 1 0 2zM18 3H6v4h12V3z"/></svg>Imprimir selecionados</button></div></div>
 <div id="rotas"></div></div><div id="mapa"></div></div></section>
 <section id="v-pac" class="hide"><div class="grid"><div class="card"><b id="ftit">Novo paciente</b><br>
@@ -158,7 +158,7 @@ if(!r.error){if(!r.data){alert("Seu usuário ainda não tem permissão de acesso
 ROLE=r.data.role==="collector"?"collector":"admin";if(r.data.tabs&&r.data.tabs.length)TABS=r.data.tabs}}catch(e){}
 if(ROLE==="collector")D=new Date().toLocaleDateString("sv-SE");
 $("login").classList.add("hide");$("app").classList.remove("hide");$("dt").value=D;$("dt2").value=D;
-$("st").value=LS.g("st","08:00");$("svc").value=LS.g("svc","10");$("ret").checked=LS.g("ret","1")==="1";$("real").checked=LS.g("real","1")==="1";$("line").checked=LS.g("line","0")==="1";$("pmap").checked=LS.g("pmap","1")==="1";
+$("st").value=LS.g("st","08:00");$("svc").value=LS.g("svc","10");$("ret").checked=LS.g("ret","1")==="1";$("real").checked=LS.g("real","1")==="1";$("line").checked=LS.g("line","0")==="1";$("pmap").checked=LS.g("pmap","1")==="1";$("pint").value=LS.g("pint","20");
 mm=L.map("mapa").setView([ORIGIN.lat,ORIGIN.lng],13);tiles(mm);ml=L.layerGroup().addTo(mm);gl=L.layerGroup().addTo(mm);if(ROLE==="collector"){["t-rotas","t-pac","t-col","t-cfg"].forEach(i=>$(i).classList.add("hide"));$("t-me").classList.toggle("hide",!TABS.includes("me"));$("t-gps").classList.toggle("hide",!TABS.includes("gps"));tab(TABS.includes("me")?"me":"gps")}else tab("rotas");loadOrigin().then(()=>{mm.setView([ORIGIN.lat,ORIGIN.lng],13);load()});
 const ch=db.channel("live");
 ["collectors","patients","stops"].forEach(t=>ch.on("postgres_changes",{event:"*",schema:"public",table:t},()=>{clearTimeout(tm);tm=setTimeout(load,200)}));
@@ -290,14 +290,14 @@ function printCleanup(){PM.forEach(m=>{try{m.remove()}catch(e){}});PM=[];$("prin
 window.addEventListener("afterprint",printCleanup);
 async function printRoutes(ids){ids=ids||C.filter(c=>!pun.has(c.id)).map(c=>c.id);if(!ids.length){alert("Marque ao menos um coletador.");return}
 const withMap=$("pmap").checked,svc=(+$("svc").value||0)*60,dt=D.split("-").reverse().join("/"),cs=ids.map(id=>C.find(c=>c.id===id)).filter(Boolean);
-printCleanup();let h="";
+printCleanup();const iv=Math.max(0,+$("pint").value||0);LS.s("pint",String(iv));let h="";
 cs.forEach((c,k)=>{const f=info(c),n=f.ps.length,z=n?zone(f.ps):"";
 const est=f.est&&(ho.tempo||ho.fim)?" (estimativa)":"",parts=[];
 if(ho.n)parts.push(n+" paradas");if(ho.tempo)parts.push(fd(f.end)+" no total");if(ho.km)parts.push((f.dist/1000).toFixed(1)+" km");if(ho.saida)parts.push("saída "+clock(0));if(ho.fim)parts.push("fim previsto ~"+clock(f.end));if(ho.zona&&z)parts.push("Zona: "+esc(z));
 h+=`<section class="ps"><h2 style="margin:0 0 4px">🩸 ${esc(c.name)}${ho.data?" — "+dt:""}</h2>`+(n?(parts.length?`<div style="margin-bottom:8px">${parts.join(" · ")}${est}</div>`:""):`<div style="margin-bottom:8px">Sem paradas nesta data.</div>`);
-if(n){h+=`<table class="pt"><tr><th></th><th>Nº</th><th>Chegada</th><th>Paciente</th><th>Telefone</th><th>Endereço</th><th>Viagem</th></tr><tr><td></td><td>🏥</td><td>${clock(0)}</td><td colspan="4"><b>Saída:</b> ${esc(ORIGIN.name)} — ${esc(ORIGIN.address)}</td></tr>`;
-f.ps.forEach((p,i)=>{h+=`<tr><td>☐</td><td>${i+1}</td><td>${clock(f.arr[i].at+i*svc)}</td><td>${esc(p.name)}</td><td>${esc(p.phone)}</td><td>${esc(ad(p))}</td><td>${fd(f.arr[i].leg)}</td></tr>`});
-if($("ret").checked)h+=`<tr><td></td><td>🏥</td><td>${clock(f.end)}</td><td colspan="4">Retorno à sede</td></tr>`;
+if(n){h+=`<table class="pt"><tr><th></th><th>Nº</th><th>Chegada</th><th>Paciente</th><th>Telefone</th><th>Endereço</th></tr><tr><td></td><td>🏥</td><td>${clock(0)}</td><td colspan="3"><b>Saída:</b> ${esc(ORIGIN.name)} — ${esc(ORIGIN.address)}</td></tr>`;
+f.ps.forEach((p,i)=>{h+=`<tr><td>☐</td><td>${i+1}</td><td style="white-space:nowrap">${clock(f.arr[i].at+i*svc)}${iv>0?" - "+clock(f.arr[i].at+i*svc+iv*60):""}</td><td>${esc(p.name)}</td><td>${esc(p.phone)}</td><td>${esc(ad(p))}</td></tr>`});
+if($("ret").checked)h+=`<tr><td></td><td>🏥</td><td>${clock(f.end)}</td><td colspan="3">Retorno à sede</td></tr>`;
 h+="</table>"}
 if(withMap&&n)h+=`<div class="pm" id="pm${k}"></div>`;
 h+="</section>"});
