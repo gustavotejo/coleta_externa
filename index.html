@@ -39,12 +39,13 @@ input.s{width:auto;margin:0}label{font-size:13px;color:var(--mut)}
 @media print{#app,#login{display:none!important}#printArea{position:static;left:auto;width:auto}body{background:#fff}}
 #login{max-width:340px;margin:12vh auto;padding:0 16px}
 .stop[draggable=true]{cursor:grab}.stop.dt{box-shadow:inset 0 2px 0 var(--ac)}.stop.db{box-shadow:inset 0 -2px 0 var(--ac)}.stop.dragging{opacity:.4}.card.dropcard{outline:2px dashed var(--ac);outline-offset:-2px}.grip{cursor:grab;color:var(--mut);user-select:none;flex:none;font-size:16px;line-height:1}
+.modal{position:fixed;inset:0;background:#0009;display:flex;align-items:center;justify-content:center;z-index:5000;padding:16px}.modal.hide{display:none}.modal .card{max-width:380px;width:100%;margin:0}
 </style></head><body>
 <div id="login" class="hide card"><button class="thm" onclick="toggleTheme()" title="Alternar modo escuro/claro" style="float:right">🌙</button><h1>🩸 Rotas de Coleta</h1><label>Usuário ou e-mail</label><input id="em" type="text" autocapitalize="none" autocomplete="username" placeholder="ex.: ana"><label>Senha</label><input id="pw" type="password" onkeydown="if(event.key==='Enter')doLogin()"><button class="pri" onclick="doLogin()">Entrar</button> <span id="lerr" class="mut"></span></div>
 <div id="app" class="hide">
 <header><h1>🩸 Rotas de Coleta</h1>
 <div class="tabs row"><button id="t-me" class="hide" onclick="tab('me')">Minha rota</button><button id="t-rotas" onclick="tab('rotas')">Rotas</button><button id="t-pac" onclick="tab('pac')">Pacientes</button><button id="t-col" onclick="tab('col')">Coletadores</button><button id="t-gps" onclick="tab('gps')">GPS</button><button id="t-cfg" onclick="tab('cfg')">Sede</button></div>
-<span id="live" class="mut"></span><button class="thm" onclick="toggleTheme()" title="Alternar modo escuro/claro" style="margin-left:auto">🌙</button><button onclick="logout()">Sair</button></header>
+<span id="live" class="mut"></span><button class="thm" onclick="toggleTheme()" title="Alternar modo escuro/claro" style="margin-left:auto">🌙</button><button onclick="openPw()" title="Alterar minha senha">🔑 Senha</button><button onclick="logout()">Sair</button></header>
 <main>
 <section id="v-rotas"><div class="card row">
 <label>Data</label><input type="date" id="dt" class="s" onchange="D=this.value;fit=true;load()">
@@ -85,6 +86,16 @@ input.s{width:auto;margin:0}label{font-size:13px;color:var(--mut)}
 <div id="smap" style="height:320px;border-radius:8px;margin-bottom:8px"></div><div id="ocoord" class="mut" style="margin-bottom:8px"></div>
 <button class="pri" onclick="saveOrigin()">Salvar sede</button></div></section>
 </main></div>
+<div id="pwmodal" class="modal hide" onclick="if(event.target===this)closePw()"><div class="card">
+<b>Alterar minha senha</b>
+<p class="mut" style="margin:4px 0 8px">Vale para o usuário que está logado agora.</p>
+<label>Senha atual</label><input id="pw0" type="password" autocomplete="current-password">
+<label>Nova senha (mínimo 8 caracteres)</label><input id="pw1" type="password" autocomplete="new-password">
+<label>Repita a nova senha</label><input id="pw2" type="password" autocomplete="new-password" onkeydown="if(event.key==='Enter')savePw()">
+<label><input type="checkbox" id="pwshow" onchange="pwShow()"> mostrar senhas</label>
+<p id="pwmsg" class="mut" style="margin:8px 0;min-height:1.2em"></p>
+<div class="row"><button class="pri" onclick="savePw()">Salvar nova senha</button><button onclick="closePw()">Cancelar</button></div>
+</div></div>
 <div id="printArea"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
@@ -365,6 +376,22 @@ else{const arr=stopsOf(cid);if(idx<0||idx>arr.length)idx=arr.length;
 arr.forEach((x,j)=>{if(j>=idx)q.push(db.from("stops").update({position:j+1}).eq("id",x.id))});
 q.push(db.from("stops").insert({route_date:D,collector_id:cid,patient_id:id,position:idx}))}
 if(!q.length){render();return}render();go(...q)}
+/* ---------- alterar senha ---------- */
+function pwShow(){["pw0","pw1","pw2"].forEach(i=>$(i).type=$("pwshow").checked?"text":"password")}
+function openPw(){["pw0","pw1","pw2"].forEach(i=>$(i).value="");$("pwshow").checked=false;pwShow();$("pwmsg").textContent="";$("pwmodal").classList.remove("hide");$("pw0").focus()}
+function closePw(){$("pwmodal").classList.add("hide");["pw0","pw1","pw2"].forEach(i=>$(i).value="")}
+async function savePw(){const a=$("pw0").value,b=$("pw1").value,c=$("pw2").value,m=$("pwmsg");
+if(!a||!b){m.textContent="Preencha a senha atual e a nova.";return}
+if(b.length<8){m.textContent="A nova senha precisa ter pelo menos 8 caracteres.";return}
+if(b!==c){m.textContent="A confirmação não confere com a nova senha.";return}
+if(b===a){m.textContent="A nova senha precisa ser diferente da atual.";return}
+m.textContent="Salvando…";
+const{data:{session}}=await db.auth.getSession();if(!session){m.textContent="Sessão expirada. Entre de novo.";return}
+const ck=await db.auth.signInWithPassword({email:session.user.email,password:a});
+if(ck.error){m.textContent="A senha atual está incorreta.";return}
+const up=await db.auth.updateUser({password:b});
+if(up.error){m.textContent=/different/i.test(up.error.message)?"A nova senha precisa ser diferente da atual.":up.error.message;return}
+m.textContent="✅ Senha alterada com sucesso.";setTimeout(closePw,1500)}
 /* ---------- modo escuro ---------- */
 function isDark(){const t=document.documentElement.getAttribute("data-theme");return t?t==="dark":matchMedia("(prefers-color-scheme: dark)").matches}
 function themeBtns(){const d=isDark();document.querySelectorAll(".thm").forEach(b=>{b.textContent=d?"☀️":"🌙";b.title=d?"Mudar para modo claro":"Mudar para modo escuro"})}
