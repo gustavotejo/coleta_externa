@@ -135,12 +135,12 @@ const hav=(a,b)=>{const R=6371,t=Math.PI/180,dl=(b.lat-a.lat)*t,dn=(b.lng-a.lng)
 function bearing(p){const t=Math.PI/180,dn=(p.lng-ORIGIN.lng)*t,y=Math.sin(dn)*Math.cos(p.lat*t),x=Math.cos(ORIGIN.lat*t)*Math.sin(p.lat*t)-Math.sin(ORIGIN.lat*t)*Math.cos(p.lat*t)*Math.cos(dn);return(Math.atan2(y,x)/t+360)%360}
 function tour(ps){let rest=ps.slice(),cur=ORIGIN;const o=[];
 while(rest.length){let bi=0,bd=1e9;rest.forEach((p,i)=>{const d=hav(cur,p);if(d<bd){bd=d;bi=i}});cur=rest.splice(bi,1)[0];o.push(cur)}
-const f=[ORIGIN,...o,ORIGIN];let imp=true,n=0;
-while(imp&&n++<50){imp=false;for(let i=1;i<f.length-2;i++)for(let j=i+1;j<f.length-1;j++){
-const d=hav(f[i-1],f[i])+hav(f[j],f[j+1])-hav(f[i-1],f[j])-hav(f[i],f[j+1]);
+const cl=$("ret").checked,f=[ORIGIN,...o,...(cl?[ORIGIN]:[])],lim=cl?f.length-2:f.length-1;let imp=true,n=0;
+while(imp&&n++<50){imp=false;for(let i=1;i<lim;i++)for(let j=i+1;j<=lim;j++){const nx=f[j+1];
+const d=hav(f[i-1],f[i])+(nx?hav(f[j],nx):0)-hav(f[i-1],f[j])-(nx?hav(f[i],nx):0);
 if(d>1e-9){f.splice(i,j-i+1,...f.slice(i,j+1).reverse());imp=true}}}
-return f.slice(1,-1)}
-const tlen=o=>{let s=0,c=ORIGIN;o.forEach(p=>{s+=hav(c,p);c=p});return s+hav(c,ORIGIN)};
+return cl?f.slice(1,-1):f.slice(1)}
+const tlen=o=>{let s=0,c=ORIGIN;o.forEach(p=>{s+=hav(c,p);c=p});return s+($("ret").checked?hav(c,ORIGIN):0)};
 function split(ps,k,start,svc){const n=ps.length,b=ps.map(p=>({p,a:bearing(p)}));
 const run=s=>{const arr=b.map(x=>({p:x.p,a:(x.a-s+360)%360})).sort((u,v)=>u.a-v.a).map(x=>x.p),g=[];let i=0;
 for(let j=0;j<k;j++){const m=Math.floor(n/k)+(j<n%k?1:0);g.push(arr.slice(i,i+m));i+=m}return g.map(tour)};
@@ -237,8 +237,34 @@ function mv(id,d){const s=T.find(x=>x.id===id),arr=stopsOf(s.collector_id),i=arr
 [arr[i],arr[j]]=[arr[j],arr[i]];go(...arr.map((x,k)=>x.position!==k?db.from("stops").update({position:k}).eq("id",x.id):null).filter(Boolean))}
 function mvTo(id,cid){if(cid)go(db.from("stops").update({collector_id:cid,position:stopsOf(cid).length}).eq("id",id))}
 function rm(id){go(db.from("stops").delete().eq("id",id))}
-function optim(cid){const ss=stopsOf(cid).filter(s=>pt(s.patient_id)),o=tour(ss.map(s=>pt(s.patient_id)));
-go(...o.map((p,k)=>{const s=ss.find(x=>x.patient_id===p.id);return s.position!==k?db.from("stops").update({position:k}).eq("id",s.id):null}).filter(Boolean))}
+let optBusy=false;
+function bestOrder(d,n,closed){if(n<=1)return n?[1]:[];
+const N=1<<n,INF=1e18,dp=new Float64Array(N*n).fill(INF),par=new Int8Array(N*n).fill(-1);
+for(let i=0;i<n;i++)dp[(1<<i)*n+i]=d[0][i+1];
+for(let m=1;m<N;m++)for(let i=0;i<n;i++){if(!(m&(1<<i)))continue;const v=dp[m*n+i];if(v>=INF)continue;
+for(let j=0;j<n;j++){if(m&(1<<j))continue;const nm=m|(1<<j),nv=v+d[i+1][j+1];if(nv<dp[nm*n+j]){dp[nm*n+j]=nv;par[nm*n+j]=i}}}
+let bi=0,bc=INF;const full=N-1;for(let i=0;i<n;i++){const c=dp[full*n+i]+(closed?d[i+1][0]:0);if(c<bc){bc=c;bi=i}}
+const o=[];let m=full,i=bi;while(i>=0){o.push(i+1);const p=par[m*n+i];m^=1<<i;i=p}return o.reverse()}
+function pathCost(d,o,closed){let c=0,p=0;o.forEach(x=>{c+=d[p][x];p=x});return c+(closed?d[p][0]:0)}
+function improveOrder(d,o,closed){o=o.slice();let best=pathCost(d,o,closed),f=true,n=0;
+while(f&&n++<60){f=false;
+for(let i=0;i<o.length-1;i++)for(let j=i+1;j<o.length;j++){const t=o.slice(0,i).concat(o.slice(i,j+1).reverse(),o.slice(j+1)),c=pathCost(d,t,closed);if(c<best-1e-6){o=t;best=c;f=true}}
+for(let i=0;i<o.length;i++)for(let j=0;j<o.length;j++){if(i===j)continue;const t=o.slice(),[x]=t.splice(i,1);t.splice(j,0,x);const c=pathCost(d,t,closed);if(c<best-1e-6){o=t;best=c;f=true}}}
+return o}
+async function optim(cid){if(optBusy)return;const ss=stopsOf(cid).filter(s=>pt(s.patient_id)),ps=ss.map(s=>pt(s.patient_id)),n=ps.length;
+if(n<2){alert("A rota precisa ter ao menos 2 paradas.");return}
+optBusy=true;try{const closed=$("ret").checked;let d=null,real=false;
+try{const q=[ORIGIN,...ps].map(p=>p.lng.toFixed(5)+","+p.lat.toFixed(5)).join(";"),j=await(await fetch("https://router.project-osrm.org/table/v1/driving/"+q+"?annotations=duration")).json();
+if(j.code==="Ok"&&j.durations&&j.durations.every(r=>r.every(x=>x!=null))){d=j.durations;real=true}}catch(e){}
+if(!d){const all=[ORIGIN,...ps];d=all.map(a=>all.map(b=>hav(a,b)*162))}
+const cur=ps.map((_,i)=>i+1),curC=pathCost(d,cur,closed);
+let o=n<=13?bestOrder(d,n,closed):[cur,tour(ps).map(p=>ps.indexOf(p)+1)].map(x=>improveOrder(d,x,closed)).sort((x,y)=>pathCost(d,x,closed)-pathCost(d,y,closed))[0];
+const newC=pathCost(d,o,closed);
+if(newC>=curC-30){alert("A ordem atual já é a melhor"+(real?" (tempos reais por ruas)":" (estimativa em linha reta)")+".");return}
+const pos=new Map(o.map((x,k)=>[ss[x-1].id,k]));
+await go(...ss.map(s=>s.position!==pos.get(s.id)?db.from("stops").update({position:pos.get(s.id)}).eq("id",s.id):null).filter(Boolean));
+alert("Ordem otimizada: de "+fd(curC)+" para "+fd(newC)+" de deslocamento"+(closed?" (com retorno à sede)":" (sem retorno)")+(real?"":" — usando estimativa em linha reta, pois o serviço de rotas não respondeu")+".")}
+finally{optBusy=false}}
 function selAll(){freeList().forEach(p=>sel.add(p.id));renderFree()}
 function clusters(ps,rad){const cs=[];ps.forEach(p=>{const c=rad>0?cs.find(x=>hav(x,p)*1000<=rad):null;if(c)c.members.push(p);else cs.push({lat:p.lat,lng:p.lng,members:[p]})});return cs}
 async function autoDist(){const redo=$("redo").checked,pool=new Set(sel);if(redo)T.forEach(s=>pool.add(s.patient_id));
