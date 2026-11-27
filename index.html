@@ -43,6 +43,7 @@ input.s{width:auto;margin:0}label{font-size:13px;color:var(--mut)}label.req{font
 .pin{position:relative}.pbadge{position:absolute;top:-7px;right:-9px;background:#fff;color:#000;border:1px solid #000;border-radius:9px;font-size:10px;line-height:14px;min-width:14px;text-align:center;padding:0 3px}
 .stt{display:inline-block;font-size:12px;padding:1px 8px;border-radius:10px;border:1px solid;margin-top:3px}.stt.coletado{color:#1e8449;background:#1e844922}.stt.chegou{color:#2874a6;background:#2874a622}.stt.ausente{color:#c0392b;background:#c0392b22}.late{color:#c0392b;font-weight:600}
 .obs{font-size:13px;background:#f1c40f33;border-radius:6px;padding:2px 6px;margin-top:3px}.acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}.acts button{padding:6px 10px}
+.pgray .leaflet-tile-pane{filter:grayscale(1) contrast(1.05)}
 </style></head><body>
 <div id="login" class="hide card"><button class="thm" onclick="toggleTheme()" title="Alternar modo escuro/claro" style="float:right">🌙</button><h1>🩸 Rotas de Coleta</h1><label>Usuário ou e-mail</label><input id="em" type="text" autocapitalize="none" autocomplete="username" placeholder="ex.: ana"><label>Senha</label><input id="pw" type="password" onkeydown="if(event.key==='Enter')doLogin()"><button class="pri" onclick="doLogin()">Entrar</button> <span id="lerr" class="mut"></span></div>
 <div id="app" class="hide">
@@ -88,7 +89,7 @@ input.s{width:auto;margin:0}label{font-size:13px;color:var(--mut)}label.req{font
 <div class="row" style="margin-top:8px"><button onclick="trkClean()">Apagar histórico com mais de 30 dias</button></div></section>
 <section id="v-rel" class="hide"><div class="card"><b>📊 Relatório do dia</b>
 <p class="mut" style="margin:4px 0">Soma de todas as rotas do dia escolhido (todos os coletadores juntos). Usa os tempos configurados na aba Rotas (min. por coleta, min. extra, voltar à sede).</p>
-<div class="row" style="margin-top:6px"><label>Data</label><input type="date" id="rdt" class="s"><button class="pri" onclick="relGen()">Gerar relatório</button><button onclick="relPrint()">Imprimir</button><button onclick="relCopy()">Copiar resumo</button></div>
+<div class="row" style="margin-top:6px"><label>Data</label><input type="date" id="rdt" class="s"><button class="pri" onclick="relGen()">Gerar relatório</button><button onclick="relPrint()">Imprimir</button><button onclick="relCopy()">Copiar resumo</button><label><input type="checkbox" id="rmapp" checked> mapa na impressão</label><label><input type="checkbox" id="rgray" checked> mapa em cinza (economiza tinta)</label></div>
 <p id="rmsg" class="mut"></p><div id="rbody"></div></div>
 <div id="rmap" style="height:55vh;min-height:320px;border-radius:10px;margin-top:8px"></div></section>
 <section id="v-me" class="hide"><div id="merow" class="row" style="margin-bottom:8px"><label>Ver como coletador</label><select id="mesel" class="s" onchange="renderMe()"></select></div><div class="row" style="margin-bottom:10px"><label>Data</label><input type="date" id="dt2" class="s" onchange="setD(this.value)"><button onclick="setD(0)">Hoje</button><button onclick="setD(1)">Amanhã</button></div><div id="me" style="max-width:640px"></div></section>
@@ -405,8 +406,7 @@ const s1=(+$("svc").value||0)*60,s2=(+$("svc2").value||0)*60,rad=+$("rad").value
 for(const c of C){const ps=r.data.filter(s=>s.collector_id===c.id).map(s=>pt(s.patient_id)).filter(Boolean);if(!ps.length)continue;
 const pts=[ORIGIN,...ps,...(ret?[ORIGIN]:[])],{r:rt,est}=await osrmRoute(pts);let trav=0,serv=0;
 ps.forEach((p,i)=>{const same=i>0&&rad>0&&hav(ps[i-1],p)*1000<=rad;if(same)serv+=s2;else{trav+=rt.legs[i];serv+=s1}});if(ret)trav+=rt.legs[ps.length];
-rows.push({c,n:ps.length,km:rt.dist/1000,trav,serv,tot:trav+serv,est});
-const line=rt.geo||pts.map(p=>[p.lat,p.lng]);L.polyline(line,{color:"#fff",weight:7,opacity:.9}).addTo(rl);L.polyline(line,{color:c.color,weight:4,opacity:.95}).bindTooltip(c.name).addTo(rl);
+const line=rt.geo||pts.map(p=>[p.lat,p.lng]);rows.push({c,n:ps.length,km:rt.dist/1000,trav,serv,tot:trav+serv,est,line,ps});L.polyline(line,{color:"#fff",weight:7,opacity:.9}).addTo(rl);L.polyline(line,{color:c.color,weight:4,opacity:.95}).bindTooltip(c.name).addTo(rl);
 ps.forEach((p,i)=>{L.circleMarker([p.lat,p.lng],{radius:4,color:"#fff",weight:1,fillColor:c.color,fillOpacity:1}).bindPopup(`<b>${esc(p.name)}</b><br>${esc(c.name)} · parada ${i+1}`).addTo(rl);bounds.push([p.lat,p.lng])})}
 if(!rows.length){m.textContent="Nenhuma rota neste dia.";return}
 L.marker([ORIGIN.lat,ORIGIN.lng],{icon:icon("#333","🏥")}).addTo(rl);bounds.push([ORIGIN.lat,ORIGIN.lng]);
@@ -418,9 +418,24 @@ $("rbody").innerHTML=`<div class="mut" style="margin:6px 0">Relatório de <b>${d
 ${T_.est?`<p class="mut" style="font-size:12px">⚠ ${T_.est} rota(s) com estimativa em linha reta (serviço de rotas indisponível no momento). Gere de novo mais tarde para valores reais.</p>`:""}
 <div style="overflow-x:auto;margin-top:8px"><table class="pt" style="font-size:13px"><tr><th>Coletador</th><th>Pacientes</th><th>Km</th><th>Deslocamento</th><th>Coleta</th><th>Duração</th></tr>${RELD.rows.map(x=>`<tr><td><span class="dot" style="background:${x.c.color}"></span> ${esc(x.c.name)}${x.est?" *":""}</td><td>${x.n}</td><td>${x.km.toFixed(1)}</td><td>${fd(x.trav)}</td><td>${fd(x.serv)}</td><td>${fd(x.tot)}</td></tr>`).join("")}<tr><th>Total</th><th>${T_.n}</th><th>${T_.km.toFixed(1)}</th><th>${fd(T_.trav)}</th><th>${fd(T_.serv)}</th><th>${fd(T_.tot)}</th></tr></table></div>
 <p class="mut" style="font-size:12px;margin-top:6px">A duração total é a soma do tempo de cada coletador (não é o tempo corrido do dia, pois as rotas acontecem ao mesmo tempo). "Rota mais longa" é o coletador que leva mais tempo.</p>`}
-function relPrint(){if(!RELD){alert("Gere o relatório primeiro.");return}const T_=relTot(),dd=RELD.d.split("-").reverse().join("/");
+function printMapSize(bb){const k=Math.cos(((bb[0][0]+bb[1][0])/2)*Math.PI/180),dx=Math.max(.0005,(bb[1][1]-bb[0][1]))*k*111.32,dy=Math.max(.0005,(bb[1][0]-bb[0][0]))*110.57,ratio=dx/dy;
+let W=680,H=Math.round(W/ratio);if(H<220)H=220;if(H>780){H=780;W=Math.max(300,Math.min(680,Math.round(H*ratio)))}return{W,H}}
+async function relPrint(){if(!RELD){alert("Gere o relatório primeiro.");return}const T_=relTot(),dd=RELD.d.split("-").reverse().join("/"),withMap=$("rmapp").checked,gray=$("rgray").checked;
+printCleanup();let bb=null;
+if(withMap){const pts=[[ORIGIN.lat,ORIGIN.lng]];RELD.rows.forEach(x=>{x.line.forEach(q=>pts.push(q));x.ps.forEach(p=>pts.push([p.lat,p.lng]))});
+bb=[[Math.min(...pts.map(p=>p[0])),Math.min(...pts.map(p=>p[1]))],[Math.max(...pts.map(p=>p[0])),Math.max(...pts.map(p=>p[1]))]]}
+const sz=bb?printMapSize(bb):null;
 $("printArea").innerHTML=`<h2 style="margin:0 0 6px">Relatório de rotas — ${dd}</h2><div style="margin-bottom:8px">${T_.n} paciente(s) · ${RELD.rows.length} coletador(es) · ${RELD.ret?"com retorno à sede":"sem retorno à sede"}</div>
-<table class="pt"><tr><th>Coletador</th><th>Pacientes</th><th>Km</th><th>Deslocamento</th><th>Coleta</th><th>Duração</th></tr>${RELD.rows.map(x=>`<tr><td>${esc(x.c.name)}${x.est?" *":""}</td><td>${x.n}</td><td>${x.km.toFixed(1)}</td><td>${fd(x.trav)}</td><td>${fd(x.serv)}</td><td>${fd(x.tot)}</td></tr>`).join("")}<tr><th>Total</th><th>${T_.n}</th><th>${T_.km.toFixed(1)}</th><th>${fd(T_.trav)}</th><th>${fd(T_.serv)}</th><th>${fd(T_.tot)}</th></tr></table>${T_.est?'<p style="font-size:11px">* estimativa em linha reta</p>':""}`;window.print()}
+<table class="pt"><tr><th>Coletador</th><th>Pacientes</th><th>Km</th><th>Deslocamento</th><th>Coleta</th><th>Duração</th></tr>${RELD.rows.map(x=>`<tr><td>${esc(x.c.name)}${x.est?" *":""}</td><td>${x.n}</td><td>${x.km.toFixed(1)}</td><td>${fd(x.trav)}</td><td>${fd(x.serv)}</td><td>${fd(x.tot)}</td></tr>`).join("")}<tr><th>Total</th><th>${T_.n}</th><th>${T_.km.toFixed(1)}</th><th>${fd(T_.trav)}</th><th>${fd(T_.serv)}</th><th>${fd(T_.tot)}</th></tr></table>${T_.est?'<p style="font-size:11px">* estimativa em linha reta</p>':""}`
++(withMap?`<div id="pmr" class="pm${gray?" pgray":""}" style="width:${sz.W}px;height:${sz.H}px"></div><div style="font-size:12px;margin-top:4px">${RELD.rows.map(x=>`<span style="display:inline-block;margin-right:12px"><span style="display:inline-block;width:18px;height:4px;background:${x.c.color};vertical-align:middle"></span> ${esc(x.c.name)}</span>`).join("")}<span>🏥 sede</span></div>`:"");
+if(!withMap){window.print();return}
+const m=L.map($("pmr"),{zoomControl:false,attributionControl:true,fadeAnimation:false,zoomAnimation:false,markerZoomAnimation:false});PM.push(m);
+const t=tiles(m),w=new Promise(r=>{t.once("load",r);setTimeout(r,7000)});
+RELD.rows.forEach(x=>{L.polyline(x.line,{color:"#fff",weight:7,opacity:.9}).addTo(m);L.polyline(x.line,{color:x.c.color,weight:4,opacity:1}).addTo(m);
+x.ps.forEach(p=>L.circleMarker([p.lat,p.lng],{radius:4,color:"#fff",weight:1,fillColor:x.c.color,fillOpacity:1}).addTo(m))});
+L.marker([ORIGIN.lat,ORIGIN.lng],{icon:L.divIcon({className:"",html:'<div class="pin" style="background:#222;width:28px;height:28px;font-size:14px">🏥</div>',iconSize:[28,28],iconAnchor:[14,14]})}).addTo(m);
+m.fitBounds(bb,{padding:[14,14],animate:false});
+await w;await new Promise(r=>setTimeout(r,400));window.print()}
 async function relCopy(){if(!RELD){alert("Gere o relatório primeiro.");return}const T_=relTot(),dd=RELD.d.split("-").reverse().join("/");
 const t=`Relatório de rotas ${dd}\nPacientes: ${T_.n}\nDistância total: ${T_.km.toFixed(1)} km\nDuração total (soma de todos os coletadores): ${fd(T_.tot)} (deslocamento ${fd(T_.trav)} + coleta ${fd(T_.serv)})\nRota mais longa: ${fd(T_.max)}\n`+RELD.rows.map(x=>`- ${x.c.name}: ${x.n} pacientes, ${x.km.toFixed(1)} km, ${fd(x.tot)}`).join("\n");
 try{await navigator.clipboard.writeText(t);$("rmsg").textContent="Resumo copiado."}catch(e){$("rmsg").textContent="Não consegui copiar automaticamente."}}
