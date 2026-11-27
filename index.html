@@ -47,7 +47,7 @@ input.s{width:auto;margin:0}label{font-size:13px;color:var(--mut)}label.req{font
 <div id="login" class="hide card"><button class="thm" onclick="toggleTheme()" title="Alternar modo escuro/claro" style="float:right">🌙</button><h1>🩸 Rotas de Coleta</h1><label>Usuário ou e-mail</label><input id="em" type="text" autocapitalize="none" autocomplete="username" placeholder="ex.: ana"><label>Senha</label><input id="pw" type="password" onkeydown="if(event.key==='Enter')doLogin()"><button class="pri" onclick="doLogin()">Entrar</button> <span id="lerr" class="mut"></span></div>
 <div id="app" class="hide">
 <header><h1>🩸 Rotas de Coleta</h1>
-<div class="tabs row"><button id="t-rotas" onclick="tab('rotas')">🗺️ Rotas</button><button id="t-me" class="hide" onclick="tab('me')">📱 Minha rota</button><button id="t-pac" onclick="tab('pac')">👤 Pacientes</button><button id="t-col" onclick="tab('col')">🚗 Coletadores</button><button id="t-gps" onclick="tab('gps')">📍 GPS</button><button id="t-trk" onclick="tab('trk')">🛣️ Percurso</button><button id="t-cfg" onclick="tab('cfg')">🏥 Sede</button></div>
+<div class="tabs row"><button id="t-rotas" onclick="tab('rotas')">🗺️ Rotas</button><button id="t-me" onclick="tab('me')">📱 Minha rota</button><button id="t-pac" onclick="tab('pac')">👤 Pacientes</button><button id="t-col" onclick="tab('col')">🚗 Coletadores</button><button id="t-gps" onclick="tab('gps')">📍 GPS</button><button id="t-trk" onclick="tab('trk')">🛣️ Percurso</button><button id="t-cfg" onclick="tab('cfg')">🏥 Sede</button></div>
 <span id="live" class="mut"></span><button class="thm" onclick="toggleTheme()" title="Alternar modo escuro/claro" style="margin-left:auto">🌙</button><button onclick="openPw()" title="Alterar minha senha">🔑 Senha</button><button onclick="logout()">Sair</button></header>
 <main>
 <section id="v-rotas"><div class="card row">
@@ -85,7 +85,7 @@ input.s{width:auto;margin:0}label{font-size:13px;color:var(--mut)}label.req{font
 <p id="tmsg" class="mut"></p><div id="tinfo"></div></div>
 <div id="tmap" style="height:60vh;min-height:340px;border-radius:10px;margin-top:8px"></div>
 <div class="row" style="margin-top:8px"><button onclick="trkClean()">Apagar histórico com mais de 30 dias</button></div></section>
-<section id="v-me" class="hide"><div class="row" style="margin-bottom:10px"><label>Data</label><input type="date" id="dt2" class="s" onchange="setD(this.value)"><button onclick="setD(0)">Hoje</button><button onclick="setD(1)">Amanhã</button></div><div id="me" style="max-width:640px"></div></section>
+<section id="v-me" class="hide"><div id="merow" class="row" style="margin-bottom:8px"><label>Ver como coletador</label><select id="mesel" class="s" onchange="renderMe()"></select></div><div class="row" style="margin-bottom:10px"><label>Data</label><input type="date" id="dt2" class="s" onchange="setD(this.value)"><button onclick="setD(0)">Hoje</button><button onclick="setD(1)">Amanhã</button></div><div id="me" style="max-width:640px"></div></section>
 <section id="v-cfg" class="hide"><div class="card" style="max-width:640px"><b>Endereço de saída (sede)</b>
 <p class="mut">Todas as rotas saem e voltam deste ponto. A mudança vale para toda a equipe.</p>
 <label>Nome</label><input id="on"><label>Endereço</label><input id="oa" placeholder="Rua, número, bairro, cidade" onkeydown="if(event.key==='Enter')ogeo()">
@@ -189,7 +189,7 @@ ROLE=r.data.role==="collector"?"collector":"admin";if(r.data.tabs&&r.data.tabs.l
 if(ROLE==="collector")D=new Date().toLocaleDateString("sv-SE");
 $("login").classList.add("hide");$("app").classList.remove("hide");$("dt").value=D;$("dt2").value=D;
 $("st").value=LS.g("st","08:00");$("svc").value=LS.g("svc","10");$("svc2").value=LS.g("svc2","4");$("rad").value=LS.g("rad","30");$("ret").checked=LS.g("ret","1")==="1";$("real").checked=LS.g("real","1")==="1";$("line").checked=LS.g("line","0")==="1";$("pmap").checked=LS.g("pmap","1")==="1";$("pint").value=LS.g("pint","20");
-mm=L.map("mapa").setView([ORIGIN.lat,ORIGIN.lng],13);tiles(mm);ml=L.layerGroup().addTo(mm);gl=L.layerGroup().addTo(mm);if(ROLE==="collector"){["t-rotas","t-pac","t-col","t-cfg","t-trk"].forEach(i=>$(i).classList.add("hide"));$("t-me").classList.toggle("hide",!TABS.includes("me"));$("t-gps").classList.toggle("hide",!TABS.includes("gps"));tab(TABS.includes("me")?"me":"gps")}else tab("rotas");loadOrigin().then(()=>{mm.setView([ORIGIN.lat,ORIGIN.lng],13);load()});
+mm=L.map("mapa").setView([ORIGIN.lat,ORIGIN.lng],13);tiles(mm);ml=L.layerGroup().addTo(mm);gl=L.layerGroup().addTo(mm);if(ROLE==="collector"){["t-rotas","t-pac","t-col","t-cfg","t-trk"].forEach(i=>$(i).classList.add("hide"));$("merow").classList.add("hide");$("t-me").classList.toggle("hide",!TABS.includes("me"));$("t-gps").classList.toggle("hide",!TABS.includes("gps"));tab(TABS.includes("me")?"me":"gps")}else{$("t-me").textContent="📱 Visão do coletador";tab("rotas")}loadOrigin().then(()=>{mm.setView([ORIGIN.lat,ORIGIN.lng],13);load()});
 const ch=db.channel("live");
 ["collectors","patients","stops"].forEach(t=>ch.on("postgres_changes",{event:"*",schema:"public",table:t},()=>{clearTimeout(tm);tm=setTimeout(load,200)}));
 ch.on("postgres_changes",{event:"*",schema:"public",table:"positions"},()=>{clearTimeout(tp);tp=setTimeout(loadPos,200)});
@@ -203,9 +203,10 @@ async function go(...qs){const r=await Promise.all(qs);r.forEach(x=>{if(x&&x.err
 function tab(t){["rotas","pac","col","gps","trk","cfg","me"].forEach(k=>{$("v-"+k).classList.toggle("hide",k!==t);$("t-"+k).classList.toggle("on",k===t)});
 if(t==="rotas")setTimeout(()=>mm.invalidateSize(),50);
 if(t==="cfg")initCfg();
+if(t==="me")renderMe();
 if(t==="trk")trkInit();
 if(t==="pac"){if(!fm){fm=L.map("fmap").setView([ORIGIN.lat,ORIGIN.lng],12);tiles(fm);fm.on("click",e=>setPin(e.latlng.lat,e.latlng.lng))}setTimeout(()=>fm.invalidateSize(),50)}}
-function render(){if(ROLE==="collector"){renderMe();renderGps();return}renderDistOpts();renderPrintOpts();renderRotas();renderPat();renderCol();renderGps();ensureRoutes()}
+function render(){if(ROLE!=="collector"&&!$("v-me").classList.contains("hide"))renderMe();if(ROLE==="collector"){renderMe();renderGps();return}renderDistOpts();renderPrintOpts();renderRotas();renderPat();renderCol();renderGps();ensureRoutes()}
 
 /* ---------- rotas ---------- */
 function dirUrl(c){const{ps}=keyOf(c);if(!ps.length)return"#";const q=ps.map(p=>p.lat+","+p.lng),o=ORIGIN.lat+","+ORIGIN.lng,r=$("ret").checked;
@@ -442,7 +443,7 @@ m.fitBounds(pl.getBounds(),{padding:[30,30],animate:false})});
 await Promise.all(waits);await new Promise(r=>setTimeout(r,400));window.print()}
 /* ---------- visão do coletador ---------- */
 function setD(v){if(typeof v==="number"){const d=new Date();d.setDate(d.getDate()+v);v=d.toLocaleDateString("sv-SE")}if(!v)return;D=v;distKeep();$("dt").value=v;$("dt2").value=v;fit=true;load()}
-function renderMe(){const c=C[0];if(!c){$("me").innerHTML='<div class="card mut">Seu usuário ainda não está ligado a um coletador. Fale com a central.</div>';return}
+function renderMe(){const sel=$("mesel");let c=C[0];if(ROLE!=="collector"&&sel){const cur=sel.value;if(sel.options.length!==C.length){sel.innerHTML=C.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join("");if(cur)sel.value=cur}c=C.find(x=>x.id===sel.value)||C[0]}if(!c){$("me").innerHTML='<div class="card mut">Seu usuário ainda não está ligado a um coletador. Fale com a central.</div>';return}
 const ss=stopsOf(c.id).filter(s=>pt(s.patient_id));
 let h=`<div class="card"><div class="row"><span class="dot" style="background:${c.color}"></span><b class="grow">${esc(c.name)} <span class="mut">· ${ss.filter(x=>stOf(x)==="coletado").length}/${ss.length} coletadas${ss.some(x=>stOf(x)==="ausente")?" · "+ss.filter(x=>stOf(x)==="ausente").length+" ausente(s)":""}</span></b>${ss.length?`<a class="btn" target="_blank" rel="noopener" href="${dirUrl(c)}">Rota completa no Google Maps</a>`:""}</div>`;
 if(!ss.length)h+='<p class="mut">Nenhuma parada para esta data.</p>';
