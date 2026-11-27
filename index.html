@@ -448,8 +448,9 @@ const ss=stopsOf(c.id).filter(s=>pt(s.patient_id));
 let h=`<div class="card"><div class="row"><span class="dot" style="background:${c.color}"></span><b class="grow">${esc(c.name)} <span class="mut">· ${ss.filter(x=>stOf(x)==="coletado").length}/${ss.length} coletadas${ss.some(x=>stOf(x)==="ausente")?" · "+ss.filter(x=>stOf(x)==="ausente").length+" ausente(s)":""}</span></b>${ss.length?`<a class="btn" target="_blank" rel="noopener" href="${dirUrl(c)}">Rota completa no Google Maps</a>`:""}</div>`;
 if(!ss.length)h+='<p class="mut">Nenhuma parada para esta data.</p>';
 ss.forEach((s,i)=>{const p=pt(s.patient_id),t=stOf(s),ac=[];
+if(t==="pendente"||t==="chegou")ac.push(`<button onclick="setSt('${s.id}','coletado')">✅ Coletado</button>`);
 if(t==="pendente")ac.push(`<button onclick="setSt('${s.id}','chegou')">📍 Cheguei</button>`);
-if(t==="pendente"||t==="chegou"){ac.push(`<button class="pri" onclick="setSt('${s.id}','coletado')">✅ Coletado</button>`,`<button onclick="setSt('${s.id}','ausente')">🚫 Ausente</button>`)}
+if(t==="pendente"||t==="chegou")ac.push(`<button onclick="setSt('${s.id}','ausente')">🚫 Ausente</button>`);
 if(t!=="pendente")ac.push(`<button onclick="setSt('${s.id}','pendente')">↩ Desfazer</button>`);
 h+=`<div class="stop" ${t==="coletado"||t==="ausente"?'style="opacity:.75"':""}><span class="num" style="background:${c.color}">${i+1}</span><div class="grow"><b>${esc(p.name)}</b><div class="mut">${esc(ad(p))}</div>${p.phone?`<div class="mut">📞 <a href="tel:${esc(p.phone)}">${esc(p.phone)}</a></div>`:""}${p.notes?`<div class="obs">📝 ${esc(p.notes)}</div>`:""}${t==="pendente"?"":stLine(s,null)}<div class="acts">${ac.join("")}</div></div><a class="btn" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&travelmode=driving&destination=${p.lat},${p.lng}">Ir</a></div>`});
 $("me").innerHTML=h+"</div>"}
