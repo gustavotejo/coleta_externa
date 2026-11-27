@@ -68,7 +68,7 @@ input.s{width:auto;margin:0}label{font-size:13px;color:var(--mut)}label.req{font
 <div class="row"><label><input type="checkbox" id="pmap" onchange="LS.s('pmap',this.checked?'1':'0')"> incluir mapa com a rota e as marcações</label><button class="pri" onclick="printRoutes()"><svg viewBox="0 0 24 24" width="16" height="16" fill="#fff" style="vertical-align:-3px;margin-right:4px" aria-hidden="true"><path d="M19 8H5a3 3 0 0 0-3 3v6h4v4h12v-4h4v-6a3 3 0 0 0-3-3zM16 19H8v-5h8v5zm3-7a1 1 0 1 1 0-2 1 1 0 0 1 0 2zM18 3H6v4h12V3z"/></svg>Imprimir selecionados</button></div></div>
 <div id="rotas"></div></div><div id="mapa"></div></div></section>
 <section id="v-pac" class="hide"><div class="grid"><div class="card"><b id="ftit">Novo paciente</b> <span class="mut" style="font-size:12px">(* campos em negrito são obrigatórios)</span><br>
-<label class="req">Nome *</label><input id="pn" autocomplete="off" oninput="dupCheck()"><div id="dup"></div><label>Telefone</label><input id="pt"><label>Observações para o coletador (portão, interfone, jejum…)</label><input id="pob" placeholder="Ex.: portão azul, tocar o interfone 302, jejum de 12h"><label>Endereço completo (aparece nas rotas e no WhatsApp)</label><input id="pf" placeholder="Rua, nº, bairro, complemento, ponto de referência"><label class="req">Endereço para localizar no mapa * <span style="font-weight:400">(pode escrever do seu jeito; gera as coordenadas)</span></label><input id="pa" placeholder="ex.: rua maciel pinheiro 200 centro" onkeydown="if(event.key==='Enter')geo()">
+<label class="req">Nome *</label><input id="pn" autocomplete="off" oninput="dupCheck()"><div id="dup"></div><label>Telefone</label><input id="pt"><label>Observações para o coletador (portão, interfone, jejum…)</label><input id="pob" placeholder="Ex.: portão azul, tocar o interfone 302, jejum de 12h"><div class="row" style="align-items:flex-end;margin-top:8px"><div><label>CEP (preenche o endereço)</label><input id="pcep" class="s" style="width:130px" inputmode="numeric" autocomplete="off" maxlength="9" placeholder="58400-122" oninput="cepIn()"></div><div><label>Número</label><input id="pnum" class="s" style="width:90px" inputmode="numeric" autocomplete="off" placeholder="nº" oninput="cepFill()" onkeydown="if(event.key==='Enter'){event.preventDefault();geo()}"></div></div><label>Endereço completo (aparece nas rotas e no WhatsApp)</label><input id="pf" placeholder="Rua, nº, bairro, complemento, ponto de referência"><label class="req">Endereço para localizar no mapa * <span style="font-weight:400">(pode escrever do seu jeito; gera as coordenadas)</span></label><input id="pa" placeholder="ex.: rua maciel pinheiro 200 centro" onkeydown="if(event.key==='Enter')geo()">
 <div class="row"><button onclick="geo()">Buscar endereço</button><span id="gmsg" class="mut"></span></div><div id="sug" style="margin-top:6px"></div>
 <label>Ou cole as coordenadas / link do Google Maps</label><div class="row"><input id="pc" class="grow" style="margin:0" placeholder="-7.2306, -35.8811"><button onclick="pasteLL()">Usar</button></div>
 <p class="mut">Confira o pino: clique no mapa ou arraste-o até o local exato.</p>
@@ -304,6 +304,19 @@ $("sug").innerHTML=SUG.length>1?SUG.map((s,i)=>`<button style="display:block;tex
 function pick(i){setPin(SUG[i].lat,SUG[i].lng,true)}
 function pasteLL(){const m=parseLL($("pc").value);if(!m){$("gmsg").textContent="Não entendi. Cole coordenadas (ex.: -7.23, -35.88) ou o link completo do Google Maps (não o link curto).";return}setPin(m[0],m[1],true);$("gmsg").textContent="Local marcado pelas coordenadas."}
 
+
+/* ---------- CEP (ViaCEP) ---------- */
+let CEPD=null;
+function cepIn(){const el=$("pcep"),v=el.value.replace(/\D/g,"").slice(0,8);el.value=v.length>5?v.slice(0,5)+"-"+v.slice(5):v;if(v.length<8){CEPD=null;return}cepGo(v)}
+async function cepGo(v){const m=$("gmsg");m.textContent="Buscando CEP…";
+try{const r=await fetch("https://viacep.com.br/ws/"+v+"/json/"),j=await r.json();
+if(!j||j.erro){CEPD=null;m.textContent="CEP não encontrado. Digite o endereço normalmente.";return}
+CEPD=j;cepFill();m.textContent="CEP encontrado. Digite o número e aperte Enter (ou toque em Buscar endereço) para marcar no mapa.";$("pnum").focus()}
+catch(e){CEPD=null;m.textContent="Não consegui consultar o CEP agora. Digite o endereço normalmente."}}
+function cepFill(){if(!CEPD)return;const n=$("pnum").value.trim(),j=CEPD,rua=(j.logradouro||"").trim(),bai=(j.bairro||"").trim(),cid=(j.localidade||"Campina Grande").trim(),uf=(j.uf||"PB").trim();
+$("pf").value=[rua?rua+(n?", "+n:""):"",bai,cid+" - "+uf].filter(Boolean).join(", ");
+$("pa").value=[rua?rua+(n?" "+n:""):"",bai,cid].filter(Boolean).join(", ")}
+
 /* ---------- pacientes ---------- */
 function showPin(){$("pcoord").textContent=pin?"Local marcado: "+pin[0].toFixed(6)+", "+pin[1].toFixed(6):"Sem local marcado."}
 function setPin(a,b,zoom){pin=[a,b];if(!fmk){fmk=L.marker([a,b],{draggable:true,icon:icon("#c0392b","•")}).addTo(fm);fmk.on("dragend",()=>{const q=fmk.getLatLng();pin=[q.lat,q.lng];showPin()})}else fmk.setLatLng([a,b]);if(zoom)fm.setView([a,b],17);showPin()}
@@ -313,7 +326,7 @@ const o={name:n,phone:$("pt").value.trim(),address:$("pa").value.trim(),full_add
 const ob=$("pob").value.trim();if(ob||(editId&&pt(editId)&&pt(editId).notes))o.notes=ob||null;
 const{error}=editId?await db.from("patients").update(o).eq("id",editId):await db.from("patients").insert(o);
 if(error){alert(error.message);return}clearForm();load()}
-function clearForm(){editId=null;$("dup").innerHTML="";pin=null;["pn","pt","pob","pa","pc","pf"].forEach(i=>$(i).value="");$("ftit").textContent="Novo paciente";$("gmsg").textContent="";$("sug").innerHTML="";if(fmk){fm.removeLayer(fmk);fmk=null}showPin()}
+function clearForm(){editId=null;$("dup").innerHTML="";pin=null;CEPD=null;["pn","pt","pob","pa","pc","pf","pcep","pnum"].forEach(i=>$(i).value="");$("ftit").textContent="Novo paciente";$("gmsg").textContent="";$("sug").innerHTML="";if(fmk){fm.removeLayer(fmk);fmk=null}showPin()}
 function editPat(id){const p=pt(id);editId=id;$("pn").value=p.name;$("pt").value=p.phone||"";$("pob").value=p.notes||"";$("pa").value=p.address||"";$("pf").value=p.full_address||"";$("ftit").textContent="Editar paciente";dupCheck();setPin(p.lat,p.lng,true);window.scrollTo(0,0)}
 function delPat(id){if(confirm("Excluir este paciente (e suas paradas)?"))go(db.from("patients").delete().eq("id",id))}
 function renderPat(){const q=$("q").value.toLowerCase();
