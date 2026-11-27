@@ -51,7 +51,7 @@ input.s{width:auto;margin:0}label{font-size:13px;color:var(--mut)}label.req{font
 <span id="live" class="mut"></span><button class="thm" onclick="toggleTheme()" title="Alternar modo escuro/claro" style="margin-left:auto">🌙</button><button onclick="openPw()" title="Alterar minha senha">🔑 Senha</button><button onclick="logout()">Sair</button></header>
 <main>
 <section id="v-rotas"><div class="card row">
-<label>Data</label><input type="date" id="dt" class="s" onchange="D=this.value;distKeep();fit=true;load()">
+<label>Data</label><input type="date" id="dt" class="s" onchange="D=this.value;distKeep();fit=true;load()"><button class="s" title="Lista dos pacientes em rota (ordem alfabética)" aria-label="Lista dos pacientes em rota" onclick="openList()" style="padding:2px 8px;opacity:.75">📋</button>
 <label>Saída da sede</label><input type="time" id="st" class="s" onchange="opt()">
 <label>Min. por coleta</label><input type="number" id="svc" class="s" style="width:64px" min="0" onchange="opt()"><label title="Tempo de cada paciente a partir do segundo, quando moram no mesmo local">Min. extra (mesmo local)</label><input type="number" id="svc2" class="s" style="width:60px" min="0" onchange="opt()"><label title="Pacientes a até esta distância contam como o mesmo local">Raio (m)</label><input type="number" id="rad" class="s" style="width:64px" min="0" onchange="opt()">
 <label><input type="checkbox" id="ret" onchange="opt()"> voltar à sede</label>
@@ -95,6 +95,12 @@ input.s{width:auto;margin:0}label{font-size:13px;color:var(--mut)}label.req{font
 <div id="smap" style="height:320px;border-radius:8px;margin-bottom:8px"></div><div id="ocoord" class="mut" style="margin-bottom:8px"></div>
 <button class="pri" onclick="saveOrigin()">Salvar sede</button></div></section>
 </main></div>
+<div id="lstmodal" class="modal hide" onclick="if(event.target===this)closeList()"><div class="card" style="max-width:520px;max-height:88vh;display:flex;flex-direction:column">
+<div class="row"><b class="grow">📋 Pacientes em rota</b><button onclick="closeList()">✕</button></div>
+<div class="row" style="margin:8px 0"><label>Data</label><input type="date" id="ldt" class="s" onchange="listLoad()"><label><input type="checkbox" id="lext" onchange="listDraw()"> com endereço e telefone</label></div>
+<div id="lmsg" class="mut" style="margin-bottom:6px"></div>
+<div id="lbody" style="overflow-y:auto;flex:1;min-height:60px"></div>
+<div class="row" style="margin-top:8px"><button onclick="listCopy()">Copiar lista</button><button onclick="listPrint()">Imprimir</button></div></div></div>
 <div id="pwmodal" class="modal hide" onclick="if(event.target===this)closePw()"><div class="card">
 <b>Alterar minha senha</b>
 <p class="mut" style="margin:4px 0 8px">Vale para o usuário que está logado agora.</p>
@@ -304,6 +310,25 @@ $("sug").innerHTML=SUG.length>1?SUG.map((s,i)=>`<button style="display:block;tex
 function pick(i){setPin(SUG[i].lat,SUG[i].lng,true)}
 function pasteLL(){const m=parseLL($("pc").value);if(!m){$("gmsg").textContent="Não entendi. Cole coordenadas (ex.: -7.23, -35.88) ou o link completo do Google Maps (não o link curto).";return}setPin(m[0],m[1],true);$("gmsg").textContent="Local marcado pelas coordenadas."}
 
+
+
+/* ---------- lista de pacientes em rota (A–Z) ---------- */
+let LST=[];
+async function openList(){$("ldt").value=D;$("lstmodal").classList.remove("hide");await listLoad()}
+function closeList(){$("lstmodal").classList.add("hide")}
+async function listLoad(){const d=$("ldt").value;if(!d)return;$("lmsg").textContent="Carregando…";
+const r=await db.from("stops").select("patient_id").eq("route_date",d);
+if(r.error){$("lmsg").textContent=r.error.message;return}
+const ids=[...new Set(r.data.map(x=>x.patient_id))];
+LST=ids.map(pt).filter(Boolean).sort((a,b)=>a.name.localeCompare(b.name,"pt-BR",{sensitivity:"base"}));listDraw()}
+function listRows(ext){return LST.map(p=>({n:p.name,x:ext?[ad(p),p.phone].filter(Boolean).join(" · "):""}))}
+function listDraw(){const d=$("ldt").value,ext=$("lext").checked;
+$("lmsg").textContent=LST.length?LST.length+" paciente(s) em rota em "+d.split("-").reverse().join("/")+" · ordem alfabética":"Nenhum paciente em rota nesta data.";
+$("lbody").innerHTML=LST.length?listRows(ext).map((r,i)=>`<div class="stop" style="padding:5px 0"><span class="mut" style="width:28px;text-align:right;flex:none">${i+1}</span><div class="grow"><b>${esc(r.n)}</b>${r.x?`<div class="mut" style="font-size:12px">${esc(r.x)}</div>`:""}</div></div>`).join(""):""}
+async function listCopy(){const t=listRows($("lext").checked).map(r=>r.n+(r.x?"\t"+r.x:"")).join("\n");
+try{await navigator.clipboard.writeText(t);$("lmsg").textContent="Lista copiada ("+LST.length+" nomes)."}catch(e){$("lmsg").textContent="Não consegui copiar automaticamente. Selecione os nomes na tela e copie."}}
+function listPrint(){if(!LST.length)return;const d=$("ldt").value.split("-").reverse().join("/"),ext=$("lext").checked;
+$("printArea").innerHTML=`<h2 style="margin:0 0 6px">Pacientes em rota — ${d}</h2><div style="margin-bottom:8px">${LST.length} paciente(s) · ordem alfabética</div><table class="pt"><tr><th style="width:34px">Nº</th><th>Paciente</th>${ext?"<th>Endereço · telefone</th>":""}<th style="width:34px">☐</th></tr>`+listRows(ext).map((r,i)=>`<tr><td>${i+1}</td><td>${esc(r.n)}</td>${ext?`<td>${esc(r.x)}</td>`:""}<td>☐</td></tr>`).join("")+"</table>";window.print()}
 
 /* ---------- CEP (ViaCEP) ---------- */
 let CEPD=null;
