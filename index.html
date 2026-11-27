@@ -45,11 +45,11 @@ input.s{width:auto;margin:0}label{font-size:13px;color:var(--mut)}
 <div id="login" class="hide card"><button class="thm" onclick="toggleTheme()" title="Alternar modo escuro/claro" style="float:right">🌙</button><h1>🩸 Rotas de Coleta</h1><label>Usuário ou e-mail</label><input id="em" type="text" autocapitalize="none" autocomplete="username" placeholder="ex.: ana"><label>Senha</label><input id="pw" type="password" onkeydown="if(event.key==='Enter')doLogin()"><button class="pri" onclick="doLogin()">Entrar</button> <span id="lerr" class="mut"></span></div>
 <div id="app" class="hide">
 <header><h1>🩸 Rotas de Coleta</h1>
-<div class="tabs row"><button id="t-me" class="hide" onclick="tab('me')">Minha rota</button><button id="t-rotas" onclick="tab('rotas')">Rotas</button><button id="t-pac" onclick="tab('pac')">Pacientes</button><button id="t-col" onclick="tab('col')">Coletadores</button><button id="t-gps" onclick="tab('gps')">GPS</button><button id="t-cfg" onclick="tab('cfg')">Sede</button></div>
+<div class="tabs row"><button id="t-me" class="hide" onclick="tab('me')">Minha rota</button><button id="t-rotas" onclick="tab('rotas')">Rotas</button><button id="t-pac" onclick="tab('pac')">Pacientes</button><button id="t-col" onclick="tab('col')">Coletadores</button><button id="t-gps" onclick="tab('gps')">GPS</button><button id="t-trk" onclick="tab('trk')">Percurso</button><button id="t-cfg" onclick="tab('cfg')">Sede</button></div>
 <span id="live" class="mut"></span><button class="thm" onclick="toggleTheme()" title="Alternar modo escuro/claro" style="margin-left:auto">🌙</button><button onclick="openPw()" title="Alterar minha senha">🔑 Senha</button><button onclick="logout()">Sair</button></header>
 <main>
 <section id="v-rotas"><div class="card row">
-<label>Data</label><input type="date" id="dt" class="s" onchange="D=this.value;fit=true;load()">
+<label>Data</label><input type="date" id="dt" class="s" onchange="D=this.value;distKeep();fit=true;load()">
 <label>Saída da sede</label><input type="time" id="st" class="s" onchange="opt()">
 <label>Min. por coleta</label><input type="number" id="svc" class="s" style="width:64px" min="0" onchange="opt()"><label title="Tempo de cada paciente a partir do segundo, quando moram no mesmo local">Min. extra (mesmo local)</label><input type="number" id="svc2" class="s" style="width:60px" min="0" onchange="opt()"><label title="Pacientes a até esta distância contam como o mesmo local">Raio (m)</label><input type="number" id="rad" class="s" style="width:64px" min="0" onchange="opt()">
 <label><input type="checkbox" id="ret" onchange="opt()"> voltar à sede</label>
@@ -60,6 +60,7 @@ input.s{width:auto;margin:0}label{font-size:13px;color:var(--mut)}
 <div class="row" style="margin:6px 0"><b style="font-size:13px">Coletadores que vão sair:</b><span id="dcols" class="row"></span></div>
 <div class="row" style="margin:6px 0"><label><input type="checkbox" id="redo" checked> permitir trocar pacientes entre coletadores (inclui os já atribuídos do dia)</label></div>
 <button class="pri" onclick="autoDist()">Distribuir os pacientes marcados</button>
+<div id="distok" class="card hide" style="margin-top:8px;border:2px solid var(--ac);position:sticky;bottom:8px;z-index:500"><b>Distribuição aplicada.</b> Confira nas listas e no mapa. Deseja manter?<div class="row" style="margin-top:6px"><button class="pri" onclick="distKeep()">✅ Manter</button><button onclick="distUndo()">↩ Desfazer (voltar como estava)</button></div></div>
 <p class="mut" style="margin:6px 0 0">Pacientes no mesmo endereço ficam juntos, com o mesmo coletador. Escolha os coletadores que vão sair e marque abaixo os pacientes do dia. Com a troca entre coletadores ligada, quem não for marcado fica sem paradas e os pacientes dele são redistribuídos. O sistema divide por região, depois testa mover e trocar pacientes entre coletadores para reduzir o tempo total e equilibrar as rotas, e ordena cada rota pelo caminho mais curto.</p></div>
 <div class="card"><b>Imprimir rotas</b><div id="pcols" class="row" style="margin:6px 0"></div><div id="phead" class="row mut" style="margin:6px 0"></div><div class="row" style="margin:6px 0"><label>Intervalo de chegada na impressão (min)</label><input type="number" id="pint" class="s" style="width:70px" min="0" max="240" onchange="LS.s('pint',this.value)"><span class="mut">0 = só o horário previsto</span></div>
 <div class="row"><label><input type="checkbox" id="pmap" onchange="LS.s('pmap',this.checked?'1':'0')"> incluir mapa com a rota e as marcações</label><button class="pri" onclick="printRoutes()"><svg viewBox="0 0 24 24" width="16" height="16" fill="#fff" style="vertical-align:-3px;margin-right:4px" aria-hidden="true"><path d="M19 8H5a3 3 0 0 0-3 3v6h4v4h12v-4h4v-6a3 3 0 0 0-3-3zM16 19H8v-5h8v5zm3-7a1 1 0 1 1 0-2 1 1 0 0 1 0 2zM18 3H6v4h12V3z"/></svg>Imprimir selecionados</button></div></div>
@@ -77,6 +78,11 @@ input.s{width:auto;margin:0}label{font-size:13px;color:var(--mut)}
 <p class="mut">Abra este app no celular do coletador, escolha o nome dele e toque em Iniciar. Mantenha a tela ligada e a página aberta. A posição aparece em tempo real no mapa da central.</p>
 <div class="row"><select id="gpsc" class="s"></select><button class="pri" onclick="gpsStart()">Iniciar</button><button onclick="gpsStop()">Parar</button></div><p id="gpsmsg" class="mut"></p></div>
 <div class="card" style="max-width:560px"><b>Últimas posições</b><div id="gpslist"></div></div></section>
+<section id="v-trk" class="hide"><div class="card"><b>Percurso feito pelo coletador</b>
+<div class="row" style="margin-top:6px"><label>Data</label><input type="date" id="dt3" class="s"><label>Coletador</label><select id="tc" class="s"></select><label><input type="checkbox" id="tpl" checked> mostrar pacientes da rota</label><button class="pri" onclick="trkShow()">Mostrar percurso</button></div>
+<p id="tmsg" class="mut"></p><div id="tinfo"></div></div>
+<div id="tmap" style="height:60vh;min-height:340px;border-radius:10px;margin-top:8px"></div>
+<div class="row" style="margin-top:8px"><button onclick="trkClean()">Apagar histórico com mais de 30 dias</button></div></section>
 <section id="v-me" class="hide"><div class="row" style="margin-bottom:10px"><label>Data</label><input type="date" id="dt2" class="s" onchange="setD(this.value)"><button onclick="setD(0)">Hoje</button><button onclick="setD(1)">Amanhã</button></div><div id="me" style="max-width:640px"></div></section>
 <section id="v-cfg" class="hide"><div class="card" style="max-width:640px"><b>Endereço de saída (sede)</b>
 <p class="mut">Todas as rotas saem e voltam deste ponto. A mudança vale para toda a equipe.</p>
@@ -181,7 +187,7 @@ ROLE=r.data.role==="collector"?"collector":"admin";if(r.data.tabs&&r.data.tabs.l
 if(ROLE==="collector")D=new Date().toLocaleDateString("sv-SE");
 $("login").classList.add("hide");$("app").classList.remove("hide");$("dt").value=D;$("dt2").value=D;
 $("st").value=LS.g("st","08:00");$("svc").value=LS.g("svc","10");$("svc2").value=LS.g("svc2","4");$("rad").value=LS.g("rad","30");$("ret").checked=LS.g("ret","1")==="1";$("real").checked=LS.g("real","1")==="1";$("line").checked=LS.g("line","0")==="1";$("pmap").checked=LS.g("pmap","1")==="1";$("pint").value=LS.g("pint","20");
-mm=L.map("mapa").setView([ORIGIN.lat,ORIGIN.lng],13);tiles(mm);ml=L.layerGroup().addTo(mm);gl=L.layerGroup().addTo(mm);if(ROLE==="collector"){["t-rotas","t-pac","t-col","t-cfg"].forEach(i=>$(i).classList.add("hide"));$("t-me").classList.toggle("hide",!TABS.includes("me"));$("t-gps").classList.toggle("hide",!TABS.includes("gps"));tab(TABS.includes("me")?"me":"gps")}else tab("rotas");loadOrigin().then(()=>{mm.setView([ORIGIN.lat,ORIGIN.lng],13);load()});
+mm=L.map("mapa").setView([ORIGIN.lat,ORIGIN.lng],13);tiles(mm);ml=L.layerGroup().addTo(mm);gl=L.layerGroup().addTo(mm);if(ROLE==="collector"){["t-rotas","t-pac","t-col","t-cfg","t-trk"].forEach(i=>$(i).classList.add("hide"));$("t-me").classList.toggle("hide",!TABS.includes("me"));$("t-gps").classList.toggle("hide",!TABS.includes("gps"));tab(TABS.includes("me")?"me":"gps")}else tab("rotas");loadOrigin().then(()=>{mm.setView([ORIGIN.lat,ORIGIN.lng],13);load()});
 const ch=db.channel("live");
 ["collectors","patients","stops"].forEach(t=>ch.on("postgres_changes",{event:"*",schema:"public",table:t},()=>{clearTimeout(tm);tm=setTimeout(load,200)}));
 ch.on("postgres_changes",{event:"*",schema:"public",table:"positions"},()=>{clearTimeout(tp);tp=setTimeout(loadPos,200)});
@@ -192,9 +198,10 @@ async function load(){const[p,c,t]=await Promise.all([db.from("patients").select
 const e=p.error||c.error||t.error;if(e){alert("Erro: "+e.message);return}P=p.data;C=c.data;T=t.data;render();loadPos()}
 async function loadPos(){const r=await db.from("positions").select("*");if(!r.error){POS=r.data;drawCars();renderGps()}}
 async function go(...qs){const r=await Promise.all(qs);r.forEach(x=>{if(x&&x.error)alert(x.error.message)});load()}
-function tab(t){["rotas","pac","col","gps","cfg","me"].forEach(k=>{$("v-"+k).classList.toggle("hide",k!==t);$("t-"+k).classList.toggle("on",k===t)});
+function tab(t){["rotas","pac","col","gps","trk","cfg","me"].forEach(k=>{$("v-"+k).classList.toggle("hide",k!==t);$("t-"+k).classList.toggle("on",k===t)});
 if(t==="rotas")setTimeout(()=>mm.invalidateSize(),50);
 if(t==="cfg")initCfg();
+if(t==="trk")trkInit();
 if(t==="pac"){if(!fm){fm=L.map("fmap").setView([ORIGIN.lat,ORIGIN.lng],12);tiles(fm);fm.on("click",e=>setPin(e.latlng.lat,e.latlng.lng))}setTimeout(()=>fm.invalidateSize(),50)}}
 function render(){if(ROLE==="collector"){renderMe();renderGps();return}renderDistOpts();renderPrintOpts();renderRotas();renderPat();renderCol();renderGps();ensureRoutes()}
 
@@ -238,9 +245,16 @@ async function autoDist(){const redo=$("redo").checked,pool=new Set(sel);if(redo
 const ps=[...pool].map(pt).filter(Boolean),cs=C.filter(c=>!dun.has(c.id));if(!cs.length||!ps.length){alert("Marque os pacientes do dia (caixinhas) e ao menos um coletador.");return}
 const s1=+$("svc").value||0,s2=+$("svc2").value||0,cl=clusters(ps,+$("rad").value||0);cl.forEach(x=>{x.w=s1+(x.members.length-1)*s2});
 const v=$("zs").value,g=split(cl,cs.length,v===""?null:+v,s1).map(l=>l.flatMap(x=>x.members)),off=cs.map(c=>redo?0:stopsOf(c.id).length);
+const prev=T.filter(x=>pool.has(x.patient_id)).map(x=>({route_date:x.route_date,collector_id:x.collector_id,patient_id:x.patient_id,position:x.position})),prevSel=[...pool].filter(id=>!prev.some(x=>x.patient_id===id));
 let r=await db.from("stops").delete().eq("route_date",D).in("patient_id",[...pool]);if(r.error){alert(r.error.message);return}
 r=await db.from("stops").insert(g.flatMap((l,j)=>l.map((p,i)=>({route_date:D,collector_id:cs[j].id,patient_id:p.id,position:off[j]+i}))));
-if(r.error){alert(r.error.message);return}sel.clear();fit=true;load()}
+if(r.error){alert(r.error.message);return}SNAP={date:D,pool:[...pool],prev,prevSel};sel.clear();fit=true;load();$("distok").classList.remove("hide");$("distok").scrollIntoView({block:"nearest",behavior:"smooth"})}
+let SNAP=null;
+function distKeep(){SNAP=null;$("distok").classList.add("hide")}
+async function distUndo(){if(!SNAP)return;const z=SNAP;
+let r=await db.from("stops").delete().eq("route_date",z.date).in("patient_id",z.pool);if(r.error){alert(r.error.message);return}
+if(z.prev.length){r=await db.from("stops").insert(z.prev);if(r.error){alert("Erro ao restaurar: "+r.error.message);return}}
+z.prevSel.forEach(id=>sel.add(id));SNAP=null;$("distok").classList.add("hide");fit=true;load()}
 
 /* ---------- busca de endereço ---------- */
 const norm=q=>q.replace(/\bn[º°o.]?\s*(?=\d)/gi,"").replace(/\br\.?\s/gi,"Rua ").replace(/\bav\.?\s/gi,"Avenida ").replace(/\bpç\.?\s/gi,"Praça ").replace(/\s+/g," ").trim();
@@ -284,10 +298,49 @@ $("gpslist").innerHTML=POS.map(p=>{const c=C.find(x=>x.id===p.collector_id);retu
 function gpsStart(){const cid=$("gpsc").value;if(!cid){alert("Cadastre e escolha um coletador.");return}if(!navigator.geolocation){alert("Este aparelho não permite GPS no navegador.");return}gpsStop();
 gpsW=navigator.geolocation.watchPosition(async pos=>{const n=Date.now();if(n-gpsT<8000)return;gpsT=n;
 const{error}=await db.from("positions").upsert({collector_id:cid,lat:pos.coords.latitude,lng:pos.coords.longitude,accuracy:pos.coords.accuracy,updated_at:new Date().toISOString()});
-$("gpsmsg").textContent=error?error.message:"Enviando localização · última às "+new Date().toLocaleTimeString("pt-BR")},
+if(!error)trkLog(cid,pos);$("gpsmsg").textContent=error?error.message:"Enviando localização · última às "+new Date().toLocaleTimeString("pt-BR")},
 e=>{$("gpsmsg").textContent="Erro de GPS: "+e.message},{enableHighAccuracy:true,maximumAge:5000});
 try{navigator.wakeLock&&navigator.wakeLock.request("screen")}catch(e){}$("gpsmsg").textContent="Iniciando… permita o acesso à localização."}
 function gpsStop(){if(gpsW!=null){navigator.geolocation.clearWatch(gpsW);gpsW=null;$("gpsmsg").textContent="Compartilhamento parado."}}
+
+/* ---------- percurso (histórico do GPS) ---------- */
+let gpsLast=null,tm2,tl;
+function trkLog(cid,pos){const q={lat:pos.coords.latitude,lng:pos.coords.longitude},n=Date.now();
+if(gpsLast&&gpsLast.c===cid&&n-gpsLast.t<20000)return;
+if(gpsLast&&gpsLast.c===cid&&hav(gpsLast,q)*1000<10&&n-gpsLast.t<120000)return;
+gpsLast={c:cid,t:n,lat:q.lat,lng:q.lng};
+db.from("position_log").insert({collector_id:cid,lat:q.lat,lng:q.lng,accuracy:pos.coords.accuracy,recorded_at:new Date().toISOString()}).then(()=>{},()=>{})}
+function trkInit(){if(!tm2){tm2=L.map("tmap").setView([ORIGIN.lat,ORIGIN.lng],12);tiles(tm2);tl=L.layerGroup().addTo(tm2);$("dt3").value=D}
+const s=$("tc"),cur=s.value;if(s.options.length!==C.length){s.innerHTML=C.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("");if(cur)s.value=cur}
+setTimeout(()=>tm2.invalidateSize(),50)}
+const hm=t=>new Date(t).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+async function trkShow(){const cid=$("tc").value,d=$("dt3").value,msg=$("tmsg"),info=$("tinfo");if(!cid||!d){msg.textContent="Escolha a data e o coletador.";return}
+const c=C.find(x=>x.id===cid),a=new Date(d+"T00:00:00"),b=new Date(a);b.setDate(b.getDate()+1);msg.textContent="Carregando…";info.innerHTML="";tl.clearLayers();
+let rows=[],from=0;
+for(;;){const r=await db.from("position_log").select("lat,lng,recorded_at").eq("collector_id",cid).gte("recorded_at",a.toISOString()).lt("recorded_at",b.toISOString()).order("recorded_at").range(from,from+999);
+if(r.error){msg.textContent=/position_log|schema cache|does not exist/i.test(r.error.message)?"A tabela do histórico ainda não foi criada no Supabase. Rode o SQL do histórico (position_log).":r.error.message;return}
+rows=rows.concat(r.data);if(r.data.length<1000)break;from+=1000}
+const col=c?c.color:"#c0392b",bounds=[];
+if(!rows.length)msg.textContent="Sem registros de GPS deste coletador nesta data. O histórico só é gravado enquanto o GPS está compartilhando.";else msg.textContent="";
+let dist=0;const seg=[[]];
+rows.forEach((p,i)=>{if(i){const q=rows[i-1],dm=hav(q,p)*1000,gap=new Date(p.recorded_at)-new Date(q.recorded_at);
+if(dm>=5)dist+=dm;if(gap>600000){seg.push([]);L.polyline([[q.lat,q.lng],[p.lat,p.lng]],{color:"#888",weight:3,dashArray:"6 8"}).addTo(tl)}}
+seg[seg.length-1].push([p.lat,p.lng]);bounds.push([p.lat,p.lng])});
+seg.filter(x=>x.length>1).forEach(x=>{L.polyline(x,{color:"#fff",weight:8,opacity:.9}).addTo(tl);L.polyline(x,{color:col,weight:5,opacity:.95}).addTo(tl)});
+let last=0;rows.forEach(p=>{const t=+new Date(p.recorded_at);if(t-last>=300000){last=t;L.circleMarker([p.lat,p.lng],{radius:4,color:"#fff",weight:1,fillColor:col,fillOpacity:1}).bindTooltip(hm(p.recorded_at)).addTo(tl)}});
+const st=[];for(let i=0;i<rows.length;){let j=i;while(j+1<rows.length&&hav(rows[i],rows[j+1])*1000<=40)j++;
+const dur=(new Date(rows[j].recorded_at)-new Date(rows[i].recorded_at))/60000;if(dur>=3){const pp=rows.slice(i,j+1);st.push({lat:pp.reduce((z,x)=>z+x.lat,0)/pp.length,lng:pp.reduce((z,x)=>z+x.lng,0)/pp.length,f:rows[i].recorded_at,t:rows[j].recorded_at,dur})}i=j+1}
+if(rows.length){const f=rows[0],l=rows[rows.length-1];
+L.marker([f.lat,f.lng],{icon:L.divIcon({className:"",html:'<div class="pin" style="background:#2e8b57;width:auto;padding:0 6px;border-radius:12px;white-space:nowrap">▶ '+hm(f.recorded_at)+'</div>',iconSize:[60,26],iconAnchor:[30,13]})}).addTo(tl);
+L.marker([l.lat,l.lng],{icon:L.divIcon({className:"",html:'<div class="pin" style="background:#c0392b;width:auto;padding:0 6px;border-radius:12px;white-space:nowrap">■ '+hm(l.recorded_at)+'</div>',iconSize:[60,26],iconAnchor:[30,13]})}).addTo(tl)}
+st.forEach((x,i)=>L.marker([x.lat,x.lng],{icon:L.divIcon({className:"",html:'<div class="pin" style="background:#e08a00">P'+(i+1)+'</div>',iconSize:[26,26],iconAnchor:[13,13]})}).bindPopup(`<b>Parada ${i+1}</b><br>${hm(x.f)} – ${hm(x.t)} (${Math.round(x.dur)} min)`).addTo(tl));
+if($("tpl").checked){const r=await db.from("stops").select("patient_id,position").eq("route_date",d).eq("collector_id",cid).order("position");
+if(!r.error)r.data.forEach((s,i)=>{const p=pt(s.patient_id);if(!p)return;L.marker([p.lat,p.lng],{icon:icon("#555",i+1),opacity:.85}).bindPopup(`<b>${i+1}. ${esc(p.name)}</b><br>${esc(ad(p))}`).addTo(tl);bounds.push([p.lat,p.lng])})}
+if(bounds.length)tm2.fitBounds(bounds,{padding:[30,30]});
+if(rows.length){const mins=(new Date(rows[rows.length-1].recorded_at)-new Date(rows[0].recorded_at))/60000;
+info.innerHTML=`<div class="row" style="gap:14px;margin:6px 0"><span>🛣️ <b>${(dist/1000).toFixed(1)} km</b> percorridos</span><span>🕒 ${hm(rows[0].recorded_at)} às ${hm(rows[rows.length-1].recorded_at)} (${fd(mins*60)})</span><span>⏸ <b>${st.length}</b> paradas</span><span class="mut">${rows.length} pontos</span></div>`+(st.length?`<div class="mut" style="font-size:13px">${st.map((x,i)=>`P${i+1}: ${hm(x.f)}–${hm(x.t)} (${Math.round(x.dur)} min)`).join(" · ")}</div>`:"")}}
+async function trkClean(){if(!confirm("Apagar o histórico de GPS com mais de 30 dias?"))return;const d=new Date();d.setDate(d.getDate()-30);
+const r=await db.from("position_log").delete().lt("recorded_at",d.toISOString());$("tmsg").textContent=r.error?r.error.message:"Histórico antigo apagado."}
 /* ---------- sede (configuração) ---------- */
 let sm,smk,SOS=[],opin=null;
 async function loadOrigin(){let v=null;try{const r=await db.from("settings").select("value").eq("key","origin").maybeSingle();if(r.data)v=r.data.value;else v=JSON.parse(LS.g("origin","null"))}catch(e){}
@@ -336,7 +389,7 @@ f.ps.forEach((p,i)=>L.marker([p.lat,p.lng],{icon:icon(c.color,i+1)}).addTo(m));
 m.fitBounds(pl.getBounds(),{padding:[30,30],animate:false})});
 await Promise.all(waits);await new Promise(r=>setTimeout(r,400));window.print()}
 /* ---------- visão do coletador ---------- */
-function setD(v){if(typeof v==="number"){const d=new Date();d.setDate(d.getDate()+v);v=d.toLocaleDateString("sv-SE")}if(!v)return;D=v;$("dt").value=v;$("dt2").value=v;fit=true;load()}
+function setD(v){if(typeof v==="number"){const d=new Date();d.setDate(d.getDate()+v);v=d.toLocaleDateString("sv-SE")}if(!v)return;D=v;distKeep();$("dt").value=v;$("dt2").value=v;fit=true;load()}
 function renderMe(){const c=C[0];if(!c){$("me").innerHTML='<div class="card mut">Seu usuário ainda não está ligado a um coletador. Fale com a central.</div>';return}
 const ss=stopsOf(c.id).filter(s=>pt(s.patient_id));
 let h=`<div class="card"><div class="row"><span class="dot" style="background:${c.color}"></span><b class="grow">${esc(c.name)} <span class="mut">· ${ss.length} paradas</span></b>${ss.length?`<a class="btn" target="_blank" rel="noopener" href="${dirUrl(c)}">Rota completa no Google Maps</a>`:""}</div>`;
